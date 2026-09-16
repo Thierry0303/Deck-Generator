@@ -1772,6 +1772,66 @@ function tableXml(xI,yI,wI,header,rows){
     +'<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">'
     +'<a:tbl><a:tblPr firstRow="1" bandRow="1"/>'+grid+trs+'</a:tbl></a:graphicData></a:graphic></p:graphicFrame>';
 }
+/* ---- native (editable) chart parts ---- */
+function cptsStr(arr){ return '<c:ptCount val="'+arr.length+'"/>'+arr.map((v,i)=>'<c:pt idx="'+i+'"><c:v>'+esc(v)+'</c:v></c:pt>').join(''); }
+function cptsNum(arr){ return '<c:ptCount val="'+arr.length+'"/>'+arr.map((v,i)=>'<c:pt idx="'+i+'"><c:v>'+(Number(v)||0)+'</c:v></c:pt>').join(''); }
+function catRef(cats){ return '<c:cat><c:strRef><c:f>Sheet1!$A$2:$A$'+(cats.length+1)+'</c:f><c:strCache>'+cptsStr(cats)+'</c:strCache></c:strRef></c:cat>'; }
+function serXml(idx, name, cats, vals, col){ const L=String.fromCharCode(66+idx);
+  return '<c:ser><c:idx val="'+idx+'"/><c:order val="'+idx+'"/>'
+    +'<c:tx><c:strRef><c:f>Sheet1!$'+L+'$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>'+esc(name)+'</c:v></c:pt></c:strCache></c:strRef></c:tx>'
+    +(col?'<c:spPr><a:solidFill><a:srgbClr val="'+col+'"/></a:solidFill></c:spPr>':'')
+    +catRef(cats)
+    +'<c:val><c:numRef><c:f>Sheet1!$'+L+'$2:$'+L+'$'+(cats.length+1)+'</c:f><c:numCache><c:formatCode>General</c:formatCode>'+cptsNum(vals)+'</c:numCache></c:numRef></c:val></c:ser>';
+}
+// build a full editable chart part; colors come from the template theme by default
+function chartXmlNative(d){
+  const cats=(d.categories||[]).map(c=>c==null?'':String(c));
+  const series=(d.series||[]);
+  const type=d.chartType||'column';
+  const head='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    +'<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    +'<c:roundedCorners val="0"/><c:chart><c:autoTitleDeleted val="1"/><c:plotArea><c:layout/>';
+  const foot=(legend)=>((legend?'<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>':'')+'<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart></c:chartSpace>');
+  if(type==='pie'||type==='doughnut'){
+    const s0=series[0]||{name:'Series',values:[]};
+    let body='<c:'+(type==='doughnut'?'doughnutChart':'pieChart')+'><c:varyColors val="1"/>'
+      +'<c:ser><c:idx val="0"/><c:order val="0"/>'
+      +'<c:tx><c:strRef><c:f>Sheet1!$B$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>'+esc(s0.name||'Series')+'</c:v></c:pt></c:strCache></c:strRef></c:tx>'
+      +catRef(cats)
+      +'<c:val><c:numRef><c:f>Sheet1!$B$2:$B$'+(cats.length+1)+'</c:f><c:numCache><c:formatCode>General</c:formatCode>'+cptsNum(s0.values||[])+'</c:numCache></c:numRef></c:val>'
+      +'</c:ser><c:firstSliceAng val="0"/>'+(type==='doughnut'?'<c:holeSize val="55"/>':'')+'</c:'+(type==='doughnut'?'doughnutChart':'pieChart')+'>';
+    return head+body+'</c:plotArea>'+foot(true);
+  }
+  const isBar=(type==='bar'); const barDir=isBar?'bar':'col';
+  const grouping=(type==='stacked')?'stacked':'clustered';
+  const overlap=(type==='stacked')?'100':'-27';
+  let sers=series.map((se,i)=>serXml(i, se.name||('Series '+(i+1)), cats, se.values||[], null)).join('');
+  // line vs bar
+  let body, catAxPos='b', valAxPos='l';
+  if(type==='line'){
+    body='<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>'+sers
+      +'<c:marker val="1"/><c:axId val="111"/><c:axId val="222"/></c:lineChart>';
+  } else {
+    if(isBar){ catAxPos='l'; valAxPos='b'; }
+    body='<c:barChart><c:barDir val="'+barDir+'"/><c:grouping val="'+grouping+'"/><c:varyColors val="0"/>'+sers
+      +'<c:gapWidth val="60"/><c:overlap val="'+overlap+'"/><c:axId val="111"/><c:axId val="222"/></c:barChart>';
+  }
+  // value axis zoom for line trends
+  let valMin='';
+  if(type==='line'){ let mn=Infinity,mx=-Infinity; series.forEach(se=>(se.values||[]).forEach(v=>{v=Number(v)||0; if(v<mn)mn=v; if(v>mx)mx=v;}));
+    if(isFinite(mn)&&mn>0){ const p=(mx-mn||mx*0.05)*0.5; valMin='<c:min val="'+(Math.max(0,+(mn-p).toFixed(4)))+'"/>'; } }
+  const catAx='<c:catAx><c:axId val="111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="'+catAxPos+'"/><c:crossAx val="222"/></c:catAx>';
+  const valAx='<c:valAx><c:axId val="222"/><c:scaling><c:orientation val="minMax"/>'+valMin+'</c:scaling><c:delete val="0"/><c:axPos val="'+valAxPos+'"/><c:crossAx val="111"/></c:valAx>';
+  const axes = isBar ? (valAx+catAx) : (catAx+valAx);
+  return head+body+axes+'</c:plotArea>'+foot(series.length>1);
+}
+function graphicFrameChart(rId,xI,yI,wI,hI){
+  return '<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="'+sid()+'" name="Chart"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>'
+    +'<p:xfrm><a:off x="'+EMU(xI)+'" y="'+EMU(yI)+'"/><a:ext cx="'+EMU(wI)+'" cy="'+EMU(hI)+'"/></p:xfrm>'
+    +'<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+    +'<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="'+rId+'"/>'
+    +'</a:graphicData></a:graphic></p:graphicFrame>';
+}
 function picXml(rId,xI,yI,wI,hI){ return '<p:pic><p:nvPicPr><p:cNvPr id="'+sid()+'" name="Chart"/>'
   +'<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>'
   +'<p:blipFill><a:blip r:embed="'+rId+'"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>'
@@ -1787,9 +1847,11 @@ function svgToPng(svg,w,h){ return new Promise((res,rej)=>{ const img=new Image(
 /* ---- build one slide onto a template layout ---- */
 async function buildTemplateSlide(sl, layout, n){
   const d=sl.data; const relPaths=['<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../'+layout.path.replace('ppt/','')+'"/>'];
-  const media=[]; let shapes=''; let imgRid=1;
-  const addImg=(base64)=>{ imgRid++; const rid='rId'+imgRid; const name='imggen'+n+'_'+imgRid+'.png';
+  const media=[]; const charts=[]; let relSeq=1; let shapes='';
+  const addImg=(base64)=>{ relSeq++; const rid='rId'+relSeq; const name='imggen'+n+'_'+relSeq+'.png';
     media.push({name,data:base64}); relPaths.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/'+name+'"/>'); return rid; };
+  const addChart=(xml)=>{ relSeq++; const rid='rId'+relSeq; _chartSeq++; const name='chart'+_chartSeq+'.xml';
+    charts.push({name,xml}); relPaths.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/'+name+'"/>'); return rid; };
   const t=sl.type;
   const cr=(layout&&layout.content)||{x:0.6,y:1.7,w:12.13,h:5.0}; // content region from the selected layout
 
@@ -1831,10 +1893,8 @@ async function buildTemplateSlide(sl, layout, n){
     if(d.lead){ shapes+=textBox(cr.x,cr.y,cr.w,0.4,[{t:d.lead,sz:1200,color:C.ink2}]); topY=cr.y+0.5; ah=cr.h-0.5; }
     const calloutW = d.callout? Math.min(2.9, cr.w*0.26) : 0;
     const chartW = cr.w - (calloutW? calloutW+0.2 : 0);
-    const PXI=150;
-    try{ const b64=await svgToPng(chartSVG(d, Math.round(chartW*PXI), Math.round(ah*PXI)), Math.round(chartW*PXI), Math.round(ah*PXI));
-      shapes+=picXml(addImg(b64), cr.x, topY, chartW, ah);
-    }catch(e){ shapes+=textBox(cr.x,topY,chartW,1,[{t:'[chart image could not be rendered]',sz:1200,color:C.warn}]); }
+    // native, editable chart (adopts the template theme's colours)
+    shapes+=graphicFrameChart(addChart(chartXmlNative(d)), cr.x, topY, chartW, ah);
     if(d.callout) shapes+=textBox(cr.x+chartW+0.2, topY+0.3, calloutW, Math.min(ah-0.3,2.2),[{t:d.callout,sz:1400,b:true,color:C.navy}]);
   } else {
     shapes+=phShape(phOf(layout,'title'),[d.title||''],'Title');
@@ -1850,8 +1910,9 @@ async function buildTemplateSlide(sl, layout, n){
     +shapes+'</p:spTree></p:cSld></p:sld>';
   const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
     +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+relPaths.join('')+'</Relationships>';
-  return { xml, rels, media };
+  return { xml, rels, media, charts };
 }
+let _chartSeq=0;
 
 async function exportOnTemplate(){
   const enabled=state.slides.filter(s=>s.enabled);
@@ -1871,14 +1932,17 @@ async function exportOnTemplate(){
     // content types: drop old slide overrides, keep the rest
     let ct=await zip.file('[Content_Types].xml').async('string');
     ct=ct.replace(/<Override PartName="\/ppt\/slides\/slide\d+\.xml"[^>]*\/>/g,'');
+    ct=ct.replace(/<Override PartName="\/ppt\/charts\/chart\d+\.xml"[^>]*\/>/g,'');
     if(!/Extension="png"/i.test(ct)) ct=ct.replace('</Types>','<Default Extension="png" ContentType="image/png"/></Types>');
     // build new slides
-    _sid=1; const newRels=[]; const sldIds=[]; let rid=maxNum+1, sldId=256;
+    _sid=1; _chartSeq=0; const newRels=[]; const sldIds=[]; let rid=maxNum+1, sldId=256;
     for(let i=0;i<enabled.length;i++){ const n=i+1; const sl=enabled[i]; const layout=layoutOf(sl);
       const built=await buildTemplateSlide(sl, layout, n);
       zip.file('ppt/slides/slide'+n+'.xml', built.xml);
       zip.file('ppt/slides/_rels/slide'+n+'.xml.rels', built.rels);
       built.media.forEach(m=>zip.file('ppt/media/'+m.name, m.data, {base64:true}));
+      (built.charts||[]).forEach(c=>{ zip.file('ppt/charts/'+c.name, c.xml);
+        ct=ct.replace('</Types>','<Override PartName="/ppt/charts/'+c.name+'" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>'); });
       ct=ct.replace('</Types>','<Override PartName="/ppt/slides/slide'+n+'.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>');
       const id='rId'+(rid++); newRels.push('<Relationship Id="'+id+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide'+n+'.xml"/>');
       sldIds.push('<p:sldId id="'+(sldId++)+'" r:id="'+id+'"/>');

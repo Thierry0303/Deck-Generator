@@ -68,9 +68,10 @@ backgrounds, logos, footers and layouts:
    slides are removed, and new slides are written into your layouts' actual
    placeholders, keeping your master's branding.
 
-What's native vs image: titles, text, bullets and **tables stay native and
-editable**; **charts are placed as high-resolution images** so they sit exactly
-on the branded layout. Slide numbers and footers come from your template.
+Everything is native and editable: titles, text, bullets, tables **and charts**.
+Charts are written as real PowerPoint charts and pick up your template theme's
+colours automatically, so you can click, restyle and edit their data in
+PowerPoint. Slide numbers and footers come from your template.
 
 **Content auto-fits the selected layout.** The tool reads each layout's content
 placeholder geometry from the Slide Master (following inheritance) and drops the
