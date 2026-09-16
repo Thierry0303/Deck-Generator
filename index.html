@@ -183,6 +183,18 @@ table.grid th input{font-weight:600}
 .ct-opt{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--line2);border-radius:99px;font-size:12px;color:var(--ink2);background:var(--panel)}
 .ct-opt.on{border-color:var(--green);background:rgba(31,202,126,.1);color:var(--green-d);font-weight:600}
 .ct-opt svg{width:14px;height:14px}
+/* rolling 12-month trend controls */
+.trend-box{margin-top:12px;border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--panel2);padding:11px 12px}
+.trend-toggle{display:flex;align-items:flex-start;gap:9px;cursor:pointer;margin:0}
+.trend-toggle input{width:auto;margin-top:2px;accent-color:var(--green)}
+.tt-title{font-size:12.5px;font-weight:600;color:var(--ink)}
+.tt-sub{font-size:11px;color:var(--ink3);line-height:1.35}
+.trend-ctrls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:11px}
+.roll-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:var(--r-sm);font-size:12px;font-weight:600;color:#06381f;background:var(--green);border:1px solid transparent}
+.roll-btn:hover{background:var(--green-d);color:#fff}
+.roll-btn svg{width:14px;height:14px}
+.trend-months{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px}
+.tm-chip{font-family:var(--mono);font-size:10.5px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:3px 7px}
 .series-val-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .svg-cell{display:flex;flex-direction:column;gap:2px}
 .svg-cell span{font-size:9.5px;color:var(--ink3);text-align:center;max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -274,7 +286,8 @@ const IC = {
   save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7M8 21v-7h8v7"/></svg>',
   open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10H3z"/></svg>',
   theme:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>',
-  reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>'
+  reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>',
+  roll:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3-6.7L21 8m0-5v5h-5"/></svg>'
 };
 
 /* ---------- preview geometry (13.333 x 7.5 in @96dpi = 1280x720) ---------- */
@@ -574,7 +587,11 @@ T.chart = {
     if(d.chartType==='column'){ctype='bar';extra={barDir:'col'};}
     else if(d.chartType==='stacked'){ctype='bar';extra={barDir:'col',barGrouping:'stacked'};}
     else if(d.chartType==='bar'){ctype='bar';extra={barDir:'bar'};}
-    else if(d.chartType==='line'){ctype='line';extra={lineSize:3,lineSmooth:false};}
+    else if(d.chartType==='line'){ctype='line';extra={lineSize:3,lineSmooth:false};
+      // zoom the value axis to the data so small movements (e.g. 99.9% SLA) are visible
+      let mn=Infinity,mx=-Infinity; series.forEach(se=>(se.values||[]).forEach(v=>{v=Number(v); if(v<mn)mn=v; if(v>mx)mx=v;}));
+      if(isFinite(mn)&&mn>0){ const padv=(mx-mn||mx*0.05)*0.4; extra.valAxisMinVal=Math.max(0, +(mn-padv).toFixed(4)); extra.valAxisMaxVal=+(mx+padv).toFixed(4); }
+    }
     else if(d.chartType==='pie'){ctype='pie';extra={showLegend:true,legendPos:'r',showPercent:true};}
     else if(d.chartType==='doughnut'){ctype='doughnut';extra={showLegend:true,legendPos:'r',showPercent:true,holeSize:60};}
     let data;
@@ -646,11 +663,15 @@ function chartSVG(d, W, H){
   let maxV=0,minV=0;
   if(type==='stacked'){ cats.forEach((_,ci)=>{ let sum=0; series.forEach(se=>sum+=Number(se.values[ci]||0)); if(sum>maxV)maxV=sum; }); }
   else { series.forEach(se=>(se.values||[]).forEach(v=>{ v=Number(v); if(v>maxV)maxV=v; if(v<minV)minV=v; })); }
-  maxV=maxV||1; const rng=maxV-Math.min(0,minV)||1;
-  const yTo=v=> pad.t+ih-((v-Math.min(0,minV))/rng)*ih;
+  maxV=maxV||1;
+  // bars must start at 0; a line trend zooms to its own range so small movements read
+  let base = Math.min(0,minV);
+  if(type==='line' && minV>0){ base = Math.max(0, minV - (maxV-minV||maxV*0.05)*0.4); }
+  const rng=(maxV-base)||1;
+  const yTo=v=> pad.t+ih-((v-base)/rng)*ih;
   // gridlines + y labels
   const ticks=4;
-  for(let t=0;t<=ticks;t++){ const val=Math.min(0,minV)+rng*t/ticks; const y=yTo(val);
+  for(let t=0;t<=ticks;t++){ const val=base+rng*t/ticks; const y=yTo(val);
     s+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="${gridc}" stroke-width="1"/>`;
     s+=`<text x="${pad.l-6}" y="${y+3}" font-size="9.5" text-anchor="end" fill="${axisc}">${fmtNum(val)}</text>`;
   }
@@ -668,8 +689,9 @@ function chartSVG(d, W, H){
   }
 
   const band=iw/n;
-  // x labels
-  cats.forEach((c,ci)=>{ const cx=pad.l+band*ci+band/2; s+=`<text x="${cx}" y="${H-pad.b+16}" font-size="10" text-anchor="middle" fill="${axisc}">${esc(c)}</text>`; });
+  // x labels (shrink + thin out when crowded, e.g. a 12-month trend)
+  const lblFont = n>10?7.5 : n>7?8.5 : 10;
+  cats.forEach((c,ci)=>{ const cx=pad.l+band*ci+band/2; s+=`<text x="${cx}" y="${H-pad.b+16}" font-size="${lblFont}" text-anchor="middle" fill="${axisc}">${esc(c)}</text>`; });
 
   if(type==='line'){
     series.forEach((se,si)=>{ const pts=(se.values||[]).map((v,ci)=>[pad.l+band*ci+band/2, yTo(Number(v)||0)]);
@@ -698,6 +720,41 @@ function chartSVG(d, W, H){
 function fmtNum(v){ v=Number(v); if(Math.abs(v)>=1000000) return (v/1000000).toFixed(1).replace(/\.0$/,'')+'M'; if(Math.abs(v)>=1000) return (v/1000).toFixed(1).replace(/\.0$/,'')+'k'; return (Math.round(v*100)/100).toString(); }
 
 /* ============================================================
+   ROLLING 12-MONTH TREND helpers (SLA, DDoS, case volumes, etc.)
+   ============================================================ */
+function defaultEndMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function monthLabels(endYYYYMM, n){
+  const parts=(endYYYYMM||defaultEndMonth()).split('-'); const y=+parts[0], m=+parts[1];
+  const out=[]; for(let i=n-1;i>=0;i--){ const dt=new Date(Date.UTC(y,(m-1)-i,1));
+    out.push(dt.toLocaleString('en-US',{month:'short'})+' '+String(dt.getUTCFullYear()).slice(2)); }
+  return out;
+}
+// Rebuild the 12 month labels; keep each series aligned. rightAlign keeps existing
+// values against the most recent months (used when first switching a chart to trend).
+function applyTrend(d, rightAlign){
+  if(!d.endMonth) d.endMonth=defaultEndMonth();
+  d.categories=monthLabels(d.endMonth,12);
+  (d.series||[]).forEach(se=>{ let v=Array.isArray(se.values)?se.values.slice():[];
+    if(rightAlign){ v=v.slice(-12); while(v.length<12) v.unshift(0); }
+    else { while(v.length<12) v.push(0); v=v.slice(0,12); }
+    se.values=v; });
+}
+// Advance the window one month: oldest month drops off, a new empty slot appears.
+function rollForward(d){
+  const parts=(d.endMonth||defaultEndMonth()).split('-'); const y=+parts[0], m=+parts[1];
+  const dt=new Date(Date.UTC(y,m,1)); // first day of next month
+  d.endMonth=dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0');
+  d.categories=monthLabels(d.endMonth,12);
+  (d.series||[]).forEach(se=>{ let v=Array.isArray(se.values)?se.values.slice(1):[]; v.push(0);
+    while(v.length<12) v.push(0); se.values=v.slice(0,12); });
+}
+// Convenience for templates: a chart pre-configured as a 12-month rolling trend.
+function trendChart(title, chartType, series, endMonth, callout, lead){
+  return slide('chart',{ title, chartType, trend:true, endMonth,
+    lead:lead||'', callout:callout||'', categories:monthLabels(endMonth,12), series });
+}
+
+/* ============================================================
    TEMPLATES
    ============================================================ */
 function slide(type, data){ return { id:uid(), type, enabled:true, data:Object.assign(T[type].make(), data||{}) }; }
@@ -712,13 +769,18 @@ function monthlyTemplate(){
         presenters:[{name:'Thierry Amiot',role:'Customer Success Manager'}]}),
       slide('agenda',{items:['SLA','DDoS','Support Cases','Volumes','Maintenance & Business Enhancements']}),
       slide('divider',{title:'SLA',kicker:'Section 1'}),
-      slide('chart',{title:'System Availability',chartType:'stacked',lead:'Overall system availability against the 99.70% commitment.',
-        categories:['Jun','Jul','Aug'],series:[{name:'Available %',values:[99.98,99.99,100]},{name:'Maintenance %',values:[0.02,0.01,0]}],callout:'100% availability in August'}),
+      trendChart('System Availability – 12 Month Trend','line',
+        [{name:'Availability %',values:[99.98,100,99.95,99.99,100,99.97,99.99,100,99.98,99.96,99.99,100]}],
+        '2026-08','Availability at or above the 99.70% SLA every month','Rolling 12-month system availability against the 99.70% commitment.'),
       slide('divider',{title:'DDoS',kicker:'Section 2'}),
       slide('kpi',{}),
+      trendChart('DDoS Events – 12 Month Trend','column',
+        [{name:'Reportable events',values:[0,0,1,0,0,0,0,0,0,0,0,0]},{name:'Downtime (min)',values:[0,0,4,0,0,0,0,0,0,0,0,0]}],
+        '2026-08','No reportable attacks in the last 6 months','Reportable DDoS events and associated downtime over the last 12 months.'),
       slide('divider',{title:'Support Cases',kicker:'Section 3'}),
-      slide('chart',{title:'Technical Support Cases Review',chartType:'column',lead:'Cases received and average days to resolve.',
-        categories:['Jun','Jul','Aug'],series:[{name:'Cases raised',values:[4,3,2]},{name:'Avg days to resolve',values:[2.1,1.8,1.5]}],callout:''}),
+      trendChart('Support Case Volume – 12 Month Trend','column',
+        [{name:'Cases raised',values:[5,4,6,3,5,4,3,4,3,2,3,2]}],
+        '2026-08','','Support cases raised per month over the last 12 months.'),
       slide('table',{title:'Technical Support Cases Review',note:'Open and recently closed cases',header:['Case Number','Subject','Status'],
         rows:[['00107257','Challenge Failed','Closed'],['00107639','Outseer access','Open']]}),
       slide('divider',{title:'Volumes',kicker:'Section 4'}),
@@ -756,14 +818,17 @@ function qbrTemplate(){
       slide('table',{title:'Executive Summary — Q2',note:'SLA performance vs contract',header:['Item','SLA – Contract','Apr','May','Jun'],
         rows:[['Service Availability','99.7%','100%','99.97%','99.99%'],['Response < 2s','95%','100%','100%','100%'],
           ['Case Response Times','By severity','100%','100%','100%'],['RCA Reporting','7 Days','N/A','N/A','N/A']]}),
-      slide('chart',{title:'System Availability Overall',chartType:'stacked',lead:'Availability with and without disruption recording.',
-        categories:['Apr','May','Jun'],series:[{name:'Available %',values:[100,99.97,99.99]},{name:'Maintenance %',values:[0,0.03,0.01]}],callout:'100% in June'}),
+      trendChart('System Availability – 12 Month Trend','line',
+        [{name:'Availability %',values:[99.95,99.98,100,99.97,99.99,100,99.96,100,99.98,100,99.97,99.99]}],
+        '2026-06','At or above the 99.70% SLA every month','Rolling 12-month system availability against the 99.70% commitment.'),
       slide('divider',{title:'DDoS',kicker:'Section 4'}),
-      slide('chart',{title:'System Availability – DDoS',chartType:'column',lead:'Significant DDoS disruption events over the last 12 months.',
-        categories:['Q3 25','Q4 25','Q1 26','Q2 26'],series:[{name:'Events',values:[0,1,0,0]},{name:'Downtime (min)',values:[0,4,0,0]}],callout:''}),
+      trendChart('System Availability – DDoS – 12 Month Trend','column',
+        [{name:'Reportable events',values:[0,0,0,1,0,0,0,0,0,0,0,0]},{name:'Downtime (min)',values:[0,0,0,4,0,0,0,0,0,0,0,0]}],
+        '2026-06','No reportable events in the last 6 months','Significant DDoS disruption events and downtime over the last 12 months.'),
       slide('divider',{title:'Technical Support Case Review',kicker:'Section 5'}),
-      slide('chart',{title:'Technical Support Case Review',chartType:'bar',lead:'Cases by severity and average days to resolve.',
-        categories:['Sev 1','Sev 2','Sev 3','Sev 5'],series:[{name:'Cases',values:[1,0,4,3]}],callout:''}),
+      trendChart('Support Case Volume – 12 Month Trend','column',
+        [{name:'Cases raised',values:[6,5,4,6,3,5,4,3,4,5,3,4]}],
+        '2026-06','','Support cases raised per month over the last 12 months.'),
       slide('divider',{title:'Fraud Advisory Summary',kicker:'Section 6'}),
       slide('chart',{title:'Challenge Rate',chartType:'line',lead:'',categories:['Jan','Feb','Mar','Apr','May','Jun'],
         series:[{name:'Challenge %',values:[40.5,41.2,42.8,43.5,44.0,45.7]}],callout:'Raised to combat Q4 allow losses'}),
@@ -1066,19 +1131,51 @@ function chartEditor(d){
   });
   wrap.appendChild(types);
   const single = d.chartType==='pie'||d.chartType==='doughnut';
-  // categories
-  const catField=h('div',{class:'field',style:{marginTop:'12px'}});
-  catField.appendChild(h('label',{},single?'Segments':'Categories (X axis)'));
-  const catWrap=h('div',{});
-  d.categories.forEach((c,i)=>{
-    const row=h('div',{class:'list-row'});
-    row.appendChild(h('div',{class:'idx'},String(i+1)));
-    row.appendChild(h('input',{type:'text',value:c||'',placeholder:'Label',oninput:e=>{d.categories[i]=e.target.value;onEdit();}}));
-    row.appendChild(h('button',{class:'mini-del',html:IC.trash,onclick:()=>{ d.categories.splice(i,1); d.series.forEach(s=>s.values.splice(i,1)); rerenderForm(); }}));
-    catWrap.appendChild(row);
-  });
-  catWrap.appendChild(h('button',{class:'add-row',html:IC.plus+' Add '+(single?'segment':'category'),onclick:()=>{ d.categories.push(''); d.series.forEach(s=>s.values.push(0)); rerenderForm(); }}));
-  catField.appendChild(catWrap); wrap.appendChild(catField);
+
+  // ---- rolling 12-month trend (SLA, DDoS, case volumes, etc.) ----
+  if(!single){
+    const tw=h('div',{class:'trend-box'});
+    const cbId='trend_'+uid();
+    const row1=h('label',{class:'trend-toggle',for:cbId});
+    row1.appendChild(h('input',{type:'checkbox',id:cbId,checked:d.trend?'checked':false,onchange:e=>{
+      d.trend=e.target.checked;
+      if(d.trend){ if(!d.endMonth) d.endMonth=defaultEndMonth(); applyTrend(d,true); }
+      rerenderForm();
+    }}));
+    row1.appendChild(h('div',{},[ h('div',{class:'tt-title'},'Rolling 12-month trend'),
+      h('div',{class:'tt-sub'},'Auto-labels the last 12 months and lets you roll the window forward each month.') ]));
+    tw.appendChild(row1);
+    if(d.trend){
+      const ctrls=h('div',{class:'trend-ctrls'});
+      const mf=h('div',{});
+      mf.appendChild(h('label',{style:{fontSize:'11px',marginBottom:'4px'}},'Latest month'));
+      mf.appendChild(h('input',{type:'month',value:d.endMonth||defaultEndMonth(),style:{width:'160px'},
+        onchange:e=>{ d.endMonth=e.target.value||d.endMonth; applyTrend(d,false); rerenderForm(); }}));
+      ctrls.appendChild(mf);
+      ctrls.appendChild(h('button',{class:'roll-btn',title:'Advance the window one month',
+        onclick:()=>{ rollForward(d); toast('Rolled forward to '+monthLabels(d.endMonth,1)[0]+' — enter the new value','ok'); rerenderForm(); },
+        html:IC.roll+' Roll forward 1 month'}));
+      tw.appendChild(ctrls);
+      tw.appendChild(h('div',{class:'trend-months'}, d.categories.map(c=>h('span',{class:'tm-chip'},c))));
+    }
+    wrap.appendChild(tw);
+  }
+
+  // categories (hidden in trend mode — months are managed above)
+  if(!d.trend){
+    const catField=h('div',{class:'field',style:{marginTop:'12px'}});
+    catField.appendChild(h('label',{},single?'Segments':'Categories (X axis)'));
+    const catWrap=h('div',{});
+    d.categories.forEach((c,i)=>{
+      const row=h('div',{class:'list-row'});
+      row.appendChild(h('div',{class:'idx'},String(i+1)));
+      row.appendChild(h('input',{type:'text',value:c||'',placeholder:'Label',oninput:e=>{d.categories[i]=e.target.value;onEdit();}}));
+      row.appendChild(h('button',{class:'mini-del',html:IC.trash,onclick:()=>{ d.categories.splice(i,1); d.series.forEach(s=>s.values.splice(i,1)); rerenderForm(); }}));
+      catWrap.appendChild(row);
+    });
+    catWrap.appendChild(h('button',{class:'add-row',html:IC.plus+' Add '+(single?'segment':'category'),onclick:()=>{ d.categories.push(''); d.series.forEach(s=>s.values.push(0)); rerenderForm(); }}));
+    catField.appendChild(catWrap); wrap.appendChild(catField);
+  }
   // series
   const serField=h('div',{class:'field'});
   serField.appendChild(h('label',{},single?'Values':'Data series'));
