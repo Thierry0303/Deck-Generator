@@ -67,8 +67,10 @@ Decks made by this tool always restore perfectly.
 
 ## Notes
 
-- The PowerPoint export runs entirely in your browser — no data leaves your
-  machine. It uses the PptxGenJS library loaded from a CDN, so the first
-  export needs an internet connection.
+- **Works fully offline.** The PowerPoint engine (PptxGenJS) and zip library
+  (JSZip) are bundled inside `index.html`, so it works with no internet and on
+  networks that block external scripts. Nothing you enter leaves your machine.
+  (Fonts are the only online extra; without a connection the tool falls back to
+  system fonts — everything still works.)
 - Charts are exported as **native, editable PowerPoint charts**, and tables as
   real tables, so you can fine-tune them in PowerPoint afterwards.
