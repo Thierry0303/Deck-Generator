@@ -27,6 +27,31 @@ native **PowerPoint (.pptx)** file styled in the Outseer brand.
   last month's deck and just update the numbers.
 - Your work is also auto-saved in the browser (local storage) between visits.
 
+## Monthly workflow — carry last month forward
+
+You don't start from scratch each month:
+
+1. **Upload last review** — click it and pick either last month's saved `.json`
+   **or last month's PowerPoint that this tool produced**. Every `.pptx` the tool
+   exports carries its data invisibly inside the file, so re-uploading it
+   restores the whole deck exactly.
+2. The **Monthly update** panel opens automatically. Set the new reporting
+   month and type only the values that changed:
+   - each **12-month trend** chart (SLA, DDoS, case volumes) rolls its window
+     forward one month and asks for the new month's value (last month's value is
+     shown for reference);
+   - **KPI cards** show their current figures to overwrite.
+3. Click **Apply updates**, review, then **Download PPTX**.
+
+You can reopen the Monthly update panel any time from the toolbar.
+
+### Importing a hand-made deck (best-effort)
+
+You can also upload a PowerPoint that was **not** made by this tool. The tool
+reads titles, tables and chart data to give you a starting point — but because
+hand-built decks vary, this is best-effort: **check every value** after import.
+Decks made by this tool always restore perfectly.
+
 ## Slide types
 
 | Type | Use for |

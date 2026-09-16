@@ -7,7 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- PptxGenJS (client-side .pptx generation) -->
+<!-- PptxGenJS (client-side .pptx generation) + JSZip (read/write the .pptx zip) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -201,8 +202,32 @@ table.grid th input{font-weight:600}
 .svg-cell input{width:66px;text-align:center;padding:6px 4px;font-family:var(--mono);font-size:11.5px}
 .color-dot{width:14px;height:14px;border-radius:4px;flex-shrink:0}
 
+/* monthly-update modal */
+.modal-back{position:fixed;inset:0;background:rgba(10,10,25,.55);backdrop-filter:blur(3px);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 16px;overflow:auto}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);box-shadow:var(--shadow-lg);width:100%;max-width:640px;display:flex;flex-direction:column;max-height:90vh}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.modal-head h2{font-family:var(--display);font-size:17px;font-weight:600}
+.modal-sub{font-size:12px;color:var(--ink3);margin-top:3px;line-height:1.4}
+.modal-body{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:13px}
+.modal-foot{display:flex;justify-content:flex-end;gap:9px;padding:14px 20px;border-top:1px solid var(--line)}
+.up-field{display:flex;flex-direction:column;gap:7px}
+.up-field>label{font-size:12px;font-weight:600;color:var(--ink2)}
+.up-check{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2);cursor:pointer}
+.up-check input{width:auto;accent-color:var(--green)}
+.up-empty{font-size:13px;color:var(--ink3);background:var(--panel2);border:1px dashed var(--line2);border-radius:var(--r-sm);padding:14px;line-height:1.5}
+.up-card{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel2);padding:12px}
+.up-card-h{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:13.5px}
+.up-tag{font-size:9.5px;font-weight:700;letter-spacing:.06em;color:#fff;background:var(--green-d);border-radius:4px;padding:2px 6px}
+.up-tag.alt{background:var(--purple)}
+.up-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.up-lab{flex:1;font-size:12.5px;color:var(--ink)}
+.up-row input{max-width:150px;font-family:var(--mono);font-size:12.5px}
+.up-row input[type=text]{font-family:var(--ui)}
+.up-last{font-size:10.5px;color:var(--ink3);font-family:var(--mono);width:92px;text-align:right}
+@media(max-width:520px){ .up-last{display:none} .up-row input{max-width:110px} }
+
 /* toast */
-.toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
 .toast{background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;animation:tin .25s ease}
 .toast.ok{background:var(--green-d);color:#fff}
 .toast.err{background:var(--orange);color:#fff}
@@ -287,7 +312,9 @@ const IC = {
   open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10H3z"/></svg>',
   theme:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>',
   reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>',
-  roll:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3-6.7L21 8m0-5v5h-5"/></svg>'
+  roll:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3-6.7L21 8m0-5v5h-5"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4M12 13v4M10 15h4"/></svg>'
 };
 
 /* ---------- preview geometry (13.333 x 7.5 in @96dpi = 1280x720) ---------- */
@@ -891,8 +918,9 @@ function topbar(){
   bar.appendChild(ds);
   bar.appendChild(h('div',{class:'spacer'}));
   bar.appendChild(h('button',{class:'icon-btn',title:'Toggle light / dark',onclick:toggleTheme,html:IC.theme}));
+  bar.appendChild(h('button',{class:'tbtn',title:'Upload last month’s deck (.pptx) or a saved .json to prepopulate',onclick:importProject,html:IC.upload+'<span class="lbl">Upload last review</span>'}));
+  bar.appendChild(h('button',{class:'tbtn',title:'Guided panel: enter only this month’s new values',onclick:openUpdatePanel,html:IC.calendar+'<span class="lbl">Monthly update</span>'}));
   bar.appendChild(h('button',{class:'tbtn',title:'Save your work as a .json file',onclick:exportJSON,html:IC.save+'<span class="lbl">Save</span>'}));
-  bar.appendChild(h('button',{class:'tbtn',title:'Load a saved .json file',onclick:importJSON,html:IC.open+'<span class="lbl">Open</span>'}));
   bar.appendChild(h('button',{class:'tbtn primary',onclick:exportPPTX,html:IC.down+'<span class="lbl">Download PPTX</span>'}));
   return bar;
 }
@@ -1220,35 +1248,132 @@ function toggleTheme(){
 (function initTheme(){ try{ const t=localStorage.getItem(LS_KEY+'.theme'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){} })();
 
 /* ============================================================
-   IMPORT / EXPORT JSON
+   IMPORT / EXPORT  (JSON + PPTX with embedded data)
    ============================================================ */
+function downloadBlob(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
+
 function exportJSON(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download=(state.fileName||'deck')+'.json'; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000); toast('Saved '+a.download,'ok');
+  downloadBlob(blob,(state.fileName||'deck')+'.json'); toast('Saved '+(state.fileName||'deck')+'.json','ok');
 }
-function importJSON(){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
-  inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; const r=new FileReader();
-    r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o.slides) throw 0; state=o; sel=0; save(); renderApp(); toast('Loaded '+f.name,'ok'); }
-      catch(e){ toast('That file is not a valid deck','err'); } };
-    r.readAsText(f); };
+
+function restoreProject(o){
+  if(!o||!Array.isArray(o.slides)) throw new Error('no slides');
+  o.slides.forEach(s=>{ if(!s.id) s.id=uid(); if(s.enabled===undefined) s.enabled=true; if(!s.data) s.data={}; });
+  state=o; sel=0; save(); renderApp();
+}
+
+// Accepts a saved .json OR any .pptx. A deck this tool made carries its data
+// invisibly (deckbuilder/project.json) and restores exactly; any other .pptx is
+// parsed best-effort (titles, tables, chart data) so you have a starting point.
+function importProject(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,.pptx,application/json';
+  inp.onchange=async ()=>{ const f=inp.files[0]; if(!f) return; const lower=f.name.toLowerCase();
+    if(lower.endsWith('.json')){ const r=new FileReader();
+      r.onload=()=>{ try{ const o=JSON.parse(r.result); restoreProject(o); toast('Loaded '+f.name,'ok'); offerUpdate(); }
+        catch(e){ toast('That JSON is not a valid deck','err'); } };
+      r.readAsText(f); return; }
+    if(lower.endsWith('.pptx')){
+      if(typeof JSZip==='undefined'){ toast('Zip library not loaded — reload the page','err'); return; }
+      toast('Reading '+f.name+'…');
+      try{ const zip=await JSZip.loadAsync(await f.arrayBuffer());
+        const pj=zip.file('deckbuilder/project.json');
+        if(pj){ restoreProject(JSON.parse(await pj.async('string')));
+          toast('Restored last month’s deck from '+f.name,'ok'); offerUpdate(); return; }
+        const o=await legacyParse(zip); restoreProject(o);
+        toast('Imported '+o.slides.length+' slides — best-effort, please verify every value','ok'); offerUpdate();
+      }catch(e){ console.error(e); toast('Could not read that .pptx: '+(e.message||e),'err'); }
+      return; }
+    toast('Please choose a .json or .pptx file','err');
+  };
   inp.click();
+}
+function offerUpdate(){ if(state.slides.some(s=>s.type==='chart'&&s.data.trend)) setTimeout(openUpdatePanel,250); }
+
+/* ---- best-effort parser for a hand-made .pptx ---- */
+const LN = ln => e => e.localName===ln;
+function els(scope,ln){ return [...scope.getElementsByTagName('*')].filter(LN(ln)); }
+function closestLocal(el,ln){ let n=el; while(n){ if(n.localName===ln) return n; n=n.parentNode; } return null; }
+function paraTexts(scope){ return els(scope,'p').map(p=>els(p,'t').map(t=>t.textContent).join('')).filter(x=>x.trim()); }
+function resolvePath(baseDir, rel){ const out=[]; (baseDir+rel).split('/').forEach(p=>{ if(p==='..')out.pop(); else if(p&&p!=='.')out.push(p); }); return out.join('/'); }
+function ptValues(scope){ const arr=[]; els(scope,'pt').forEach(pt=>{ const i=parseInt(pt.getAttribute('idx')||'0',10);
+  const v=els(pt,'v')[0]; arr[i]=v?v.textContent:''; }); for(let i=0;i<arr.length;i++) if(arr[i]===undefined) arr[i]=''; return arr; }
+
+function parseChartXml(doc){
+  let type='column';
+  if(els(doc,'lineChart').length) type='line';
+  else if(els(doc,'pieChart').length) type='pie';
+  else if(els(doc,'doughnutChart').length) type='doughnut';
+  else if(els(doc,'barChart').length){ const bd=els(doc,'barDir')[0]; const dir=bd?bd.getAttribute('val'):'col';
+    const grp=els(doc,'grouping')[0]; const gr=grp?grp.getAttribute('val'):'clustered';
+    type = dir==='bar' ? 'bar' : (gr==='stacked'||gr==='percentStacked') ? 'stacked':'column'; }
+  const series=[]; let categories=[];
+  els(doc,'ser').forEach((ser,si)=>{
+    const tx=els(ser,'tx')[0]; let name='Series '+(si+1);
+    if(tx){ const vs=els(tx,'v'); if(vs.length) name=vs[vs.length-1].textContent; }
+    if(!categories.length){ const cat=els(ser,'cat')[0]; if(cat) categories=ptValues(cat); }
+    const val=els(ser,'val')[0];
+    const values=val? ptValues(val).map(v=>{const n=parseFloat(v);return isNaN(n)?0:n;}) : [];
+    series.push({name,values});
+  });
+  if(!categories.length && series[0]) categories=series[0].values.map((_,i)=>'#'+(i+1));
+  return {type,categories,series};
+}
+async function extractCharts(zip, slideName, parser){
+  const relName=slideName.replace(/slides\/(slide\d+)\.xml$/,'slides/_rels/$1.xml.rels');
+  const rf=zip.file(relName); if(!rf) return [];
+  const rd=parser.parseFromString(await rf.async('string'),'application/xml');
+  const out=[];
+  for(const r of els(rd,'Relationship')){ const tgt=r.getAttribute('Target')||''; if(!/charts\/chart\d+\.xml/i.test(tgt)) continue;
+    const cf=zip.file(resolvePath('ppt/slides/',tgt)); if(!cf) continue;
+    try{ out.push(parseChartXml(parser.parseFromString(await cf.async('string'),'application/xml'))); }catch(e){}
+  }
+  return out;
+}
+async function legacyParse(zip){
+  const parser=new DOMParser();
+  const slideFiles=Object.keys(zip.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort((a,b)=>(+a.match(/(\d+)\.xml/)[1])-(+b.match(/(\d+)\.xml/)[1]));
+  if(!slideFiles.length) throw new Error('no slides found');
+  const project={ deckType:'monthly', footer:'', fileName:'Imported_Review', slides:[] };
+  for(let si=0; si<slideFiles.length; si++){
+    const name=slideFiles[si]; let doc;
+    try{ doc=parser.parseFromString(await zip.file(name).async('string'),'application/xml'); }catch(e){ continue; }
+    // title
+    let title='';
+    for(const ph of els(doc,'ph')){ if(['title','ctrTitle'].includes(ph.getAttribute('type'))){ const sp=closestLocal(ph,'sp'); if(sp){ title=paraTexts(sp).join(' ').trim(); if(title) break; } } }
+    // body paragraphs (exclude title + pure page numbers)
+    let body=[]; els(doc,'sp').forEach(sp=>{ body=body.concat(paraTexts(sp)); });
+    if(title){ const i=body.indexOf(title); if(i>=0) body.splice(i,1); }
+    body=body.filter(t=>t.trim() && !/^\d{1,3}$/.test(t.trim()) && !/rights reserved/i.test(t));
+    // tables
+    const tables=els(doc,'tbl').map(tbl=>{ const rows=els(tbl,'tr').map(tr=>[...tr.children].filter(LN('tc')).map(tc=>paraTexts(tc).join(' ').trim()));
+      const header=rows.shift()||[]; return {header,rows}; });
+    // charts
+    const charts=await extractCharts(zip,name,parser);
+    let sl;
+    if(charts.length){ const c=charts[0]; sl=slide('chart',{title:title||'Chart',chartType:c.type,categories:c.categories,series:c.series,lead:'',callout:''}); }
+    else if(tables.length){ const t=tables[0]; sl=slide('table',{title:title||'Table',header:t.header.length?t.header:['Column 1'],rows:t.rows,note:''}); }
+    else if(si===0){ sl=slide('cover',{title:title||'Service Review',client:'',sub:body[0]||'',date:body[1]||'',presenters:[]}); }
+    else if(title && body.length===0){ sl=slide('divider',{title:title,kicker:''}); }
+    else { sl=slide('bullets',{title:title||('Slide '+(si+1)),lead:'',bullets:body.length?body:['']}); }
+    project.slides.push(sl);
+  }
+  return project;
 }
 
 /* ============================================================
-   EXPORT PPTX
+   EXPORT PPTX  (embeds the project data for a clean round-trip)
    ============================================================ */
-function exportPPTX(){
+async function exportPPTX(){
   if(typeof PptxGenJS==='undefined'){ toast('PowerPoint library not loaded — check your connection and reload','err'); return; }
   const enabled=state.slides.filter(s=>s.enabled);
   if(!enabled.length){ toast('No slides are included','err'); return; }
   toast('Building PowerPoint…');
   try{
     const pptx=new PptxGenJS();
-    pptx.defineLayout({name:'W169',width:13.333,height:7.5});
-    pptx.layout='W169';
+    pptx.defineLayout({name:'W169',width:13.333,height:7.5}); pptx.layout='W169';
     pptx.author='Review Deck Builder'; pptx.company='Outseer';
     let num=0;
     enabled.forEach(sl=>{ num++; const s=pptx.addSlide(); const ctx={num,footer:state.footer||'',deckType:state.deckType};
@@ -1256,9 +1381,107 @@ function exportPPTX(){
       catch(e){ console.error('slide error',sl.type,e); s.addText('Error rendering slide: '+sl.type,{x:1,y:1,w:10,h:1,color:'EA602A'}); }
     });
     const fname=(state.fileName||'Review_Deck')+'.pptx';
-    pptx.writeFile({fileName:fname}).then(()=>toast('Downloaded '+fname,'ok'))
-      .catch(e=>{ console.error(e); toast('Export failed: '+e.message,'err'); });
-  }catch(e){ console.error(e); toast('Export failed: '+e.message,'err'); }
+    if(typeof JSZip!=='undefined'){
+      const ab=await pptx.write({ outputType:'arraybuffer' });
+      const zip=await JSZip.loadAsync(ab);
+      zip.file('deckbuilder/project.json', JSON.stringify(state));   // invisible carry-forward data
+      let ct=await zip.file('[Content_Types].xml').async('string');
+      if(!/Extension="json"/i.test(ct)) ct=ct.replace('</Types>','<Default Extension="json" ContentType="application/json"/></Types>');
+      zip.file('[Content_Types].xml', ct);
+      const blob=await zip.generateAsync({type:'blob'});
+      downloadBlob(blob, fname);
+      toast('Downloaded '+fname+' · re-upload it next month to prepopulate','ok');
+    } else {
+      await pptx.writeFile({fileName:fname}); toast('Downloaded '+fname,'ok');
+    }
+  }catch(e){ console.error(e); toast('Export failed: '+(e.message||e),'err'); }
+}
+
+/* ============================================================
+   GUIDED MONTHLY-UPDATE PANEL
+   ============================================================ */
+function addMonth(ym,n){ const p=(ym||defaultEndMonth()).split('-'); const d=new Date(Date.UTC(+p[0],(+p[1]-1)+n,1)); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+function monthName(ym){ const p=(ym||defaultEndMonth()).split('-'); return new Date(Date.UTC(+p[0],+p[1]-1,1)).toLocaleString('en-US',{month:'long',year:'numeric'}); }
+
+function openUpdatePanel(){
+  const trend=state.slides.map((s,i)=>({s,i})).filter(o=>o.s.type==='chart'&&o.s.data.trend);
+  const kpis =state.slides.map((s,i)=>({s,i})).filter(o=>o.s.type==='kpi');
+  let base=null; trend.forEach(o=>{ if(o.s.data.endMonth && (base===null||o.s.data.endMonth>base)) base=o.s.data.endMonth; });
+  const target = base? addMonth(base,1) : defaultEndMonth();
+
+  const back=h('div',{class:'modal-back',onclick:e=>{ if(e.target===back) close(); }});
+  const modal=h('div',{class:'modal'});
+  function close(){ back.remove(); }
+  modal.appendChild(h('div',{class:'modal-head'},[
+    h('div',{},[ h('h2',{},'Add this month’s values'),
+      h('div',{class:'modal-sub'},'Everything else carries over from last time. Enter only what changed this month.') ]),
+    h('button',{class:'icon-btn',onclick:close,html:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>'})
+  ]));
+  const bodyEl=h('div',{class:'modal-body'});
+
+  // reporting month
+  const mRow=h('div',{class:'up-field'});
+  mRow.appendChild(h('label',{},'Reporting month (the new latest month)'));
+  const mInput=h('input',{type:'month',value:target,style:{maxWidth:'220px'}});
+  mRow.appendChild(mInput);
+  const coverCb=h('label',{class:'up-check'});
+  const cbEl=h('input',{type:'checkbox',checked:'checked'}); coverCb.appendChild(cbEl);
+  coverCb.appendChild(document.createTextNode(' Also set the title slide period to this month'));
+  mRow.appendChild(coverCb);
+  bodyEl.appendChild(mRow);
+
+  if(!trend.length && !kpis.length){
+    bodyEl.appendChild(h('div',{class:'up-empty'},'This deck has no rolling-trend charts or KPI cards yet. Add a chart and switch on “Rolling 12-month trend”, or edit slides directly.'));
+  }
+
+  const trendInputs=[]; // {slide, series:[{se,input}]}
+  trend.forEach(o=>{ const d=o.s.data;
+    const card=h('div',{class:'up-card'});
+    card.appendChild(h('div',{class:'up-card-h'},[ h('span',{class:'up-tag'},'TREND'), h('b',{},d.title||'Chart') ]));
+    const rec={slide:o.s,series:[]};
+    (d.series||[]).forEach((se,si)=>{
+      const last=(se.values&&se.values.length)?se.values[se.values.length-1]:'';
+      const row=h('div',{class:'up-row'});
+      row.appendChild(h('div',{class:'up-lab'},[ h('span',{class:'color-dot',style:{background:hx(PALETTE[si%PALETTE.length]),display:'inline-block',marginRight:'6px',verticalAlign:'-2px'}}), se.name||('Series '+(si+1)) ]));
+      const inp=h('input',{type:'number',step:'any',placeholder:'new value'});
+      row.appendChild(inp);
+      row.appendChild(h('div',{class:'up-last'},'last: '+(last===''?'—':last)));
+      card.appendChild(row); rec.series.push({se,input:inp});
+    });
+    bodyEl.appendChild(card); trendInputs.push(rec);
+  });
+
+  const kpiInputs=[];
+  kpis.forEach(o=>{ const d=o.s.data;
+    const card=h('div',{class:'up-card'});
+    card.appendChild(h('div',{class:'up-card-h'},[ h('span',{class:'up-tag alt'},'KPI'), h('b',{},d.title||'KPI cards') ]));
+    const rec={cards:[]};
+    (d.cards||[]).forEach(c=>{ const row=h('div',{class:'up-row'});
+      row.appendChild(h('div',{class:'up-lab'}, c.label||'Metric'));
+      const inp=h('input',{type:'text',value:c.value||''});
+      row.appendChild(inp); card.appendChild(row); rec.cards.push({c,input:inp});
+    });
+    bodyEl.appendChild(card); kpiInputs.push(rec);
+  });
+
+  modal.appendChild(bodyEl);
+  modal.appendChild(h('div',{class:'modal-foot'},[
+    h('button',{class:'tbtn',onclick:close},'Cancel'),
+    h('button',{class:'tbtn primary',onclick:()=>{
+      const tgt=mInput.value||target;
+      trendInputs.forEach(rec=>{ const d=rec.slide.data;
+        // advance the 12-month window to the target month (only forward)
+        let guard=0; while((d.endMonth||'')<tgt && guard++<48) rollForward(d);
+        if((d.endMonth||'')!==tgt){ d.endMonth=tgt; applyTrend(d,false); }
+        rec.series.forEach(({se,input})=>{ if(input.value!==''){ se.values[se.values.length-1]=parseFloat(input.value); } });
+      });
+      kpiInputs.forEach(rec=>rec.cards.forEach(({c,input})=>{ c.value=input.value; }));
+      if(cbEl.checked){ const cov=state.slides.find(s=>s.type==='cover'); if(cov){ cov.data.sub=monthName(tgt); } }
+      save(); renderApp(); close(); toast('Updated with '+monthName(tgt)+' figures','ok');
+    }},'Apply updates')
+  ]));
+  back.appendChild(modal); document.body.appendChild(back);
+  setTimeout(()=>{ const fi=modal.querySelector('input[type=number]'); if(fi) fi.focus(); },60);
 }
 
 /* ============================================================
