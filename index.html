@@ -116,22 +116,30 @@ textarea{resize:vertical;line-height:1.45}
 .add-menu .am-desc{font-size:10.5px;color:var(--ink3)}
 
 /* ---------- Main / editor ---------- */
-.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--ground)}
-.preview-wrap{padding:20px 24px;background:var(--ground);border-bottom:1px solid var(--line);overflow:auto;flex-shrink:0}
-.stage-outer{max-width:900px;margin:0 auto}
+.main{flex:1;display:flex;min-width:0;min-height:0;background:var(--ground)}
+/* left: the fields you fill in (always visible). right: the docked live preview. */
+.editor-col{flex:1 1 56%;min-width:0;overflow-y:auto;padding:20px 24px 70px}
+.editor-inner{max-width:780px}
+.preview-col{flex:1 1 44%;max-width:620px;min-width:360px;background:var(--panel2);border-left:1px solid var(--line);padding:16px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:11px}
+.preview-wrap{}
+.stage-outer{width:100%}
 .stage-scaler{position:relative;width:100%;box-shadow:var(--shadow-lg);border-radius:6px;overflow:hidden;background:#fff}
 .stage{position:absolute;top:0;left:0;width:1280px;height:720px;transform-origin:top left;background:#fff;overflow:hidden;font-family:var(--ui)}
 .stage *{box-sizing:border-box}
-.preview-bar{max-width:900px;margin:0 auto 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.preview-bar{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .preview-bar .pb-title{font-size:12px;color:var(--ink3)}
 .preview-bar .pb-title b{color:var(--ink);font-weight:600}
 .mini-actions{display:flex;gap:6px}
 .mini-actions button{font-size:11.5px;padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);color:var(--ink2)}
 .mini-actions button:hover{border-color:var(--line2)}
 .mini-actions button.danger:hover{color:var(--orange);border-color:var(--orange)}
-
-.editor{flex:1;overflow-y:auto;padding:20px 24px 60px}
-.editor-inner{max-width:900px;margin:0 auto}
+.preview-note{font-size:11.5px;color:var(--ink2);background:rgba(31,202,126,.09);border:1px solid rgba(31,202,126,.28);border-radius:var(--r-sm);padding:8px 11px;line-height:1.4}
+.preview-note b{color:var(--green-d)}
+.ed-lead{font-size:12.5px;color:var(--ink3);margin:-6px 0 16px;line-height:1.45}
+@media (max-width:1000px){
+  .main{flex-direction:column}
+  .preview-col{order:-1;flex:none;max-width:none;min-width:0;border-left:none;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+}
 .ed-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
 .ed-badge{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);background:rgba(27,20,100,.08);padding:4px 10px;border-radius:99px}
 :root[data-theme="dark"] .ed-badge,:root:not([data-theme="light"]) .ed-badge{background:rgba(199,195,255,.12)}
@@ -197,6 +205,7 @@ table.grid th input{font-weight:600}
   .body{flex-direction:column;overflow:auto}
   .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:38vh}
   .main{overflow:visible}
+  .preview-col{position:static}
   .brand-sub{display:none}
   .deck-select{display:none}
   .grid2{grid-template-columns:1fr}
@@ -898,10 +907,18 @@ function mainPane(){
   const m=h('div',{class:'main'});
   if(!state.slides.length){ m.appendChild(h('div',{class:'empty',html:IC.slides+'<div>No slides yet — add one from the sidebar.</div>'})); return m; }
   const s=state.slides[sel]; const ctx=slideCtx(sel);
-  // preview
-  const pw=h('div',{class:'preview-wrap'});
-  pw.appendChild(h('div',{class:'preview-bar'},[
-    h('div',{class:'pb-title',html:'Slide <b>'+(sel+1)+'</b> of '+state.slides.length+' &nbsp;·&nbsp; '+esc(T[s.type].name)+(s.enabled?'':' <span style="color:var(--orange)">(skipped)</span>')}),
+
+  // LEFT: the fields you fill in
+  const ed=h('div',{class:'editor-col'}); const inner=h('div',{class:'editor-inner'});
+  inner.appendChild(h('div',{class:'ed-head'},[ h('span',{class:'ed-badge'},T[s.type].name), h('h2',{},slideLabel(s)) ]));
+  inner.appendChild(h('div',{class:'ed-lead'},'Edit any value below — every field updates the live preview on the right and feeds the PowerPoint export. This is where you change the SLA figures, volumes, table rows and chart numbers each month.'));
+  inner.appendChild(buildForm(s));
+  ed.appendChild(inner); m.appendChild(ed);
+
+  // RIGHT: docked live preview
+  const pc=h('div',{class:'preview-col'});
+  pc.appendChild(h('div',{class:'preview-bar'},[
+    h('div',{class:'pb-title',html:'Slide <b>'+(sel+1)+'</b> of '+state.slides.length+(s.enabled?'':' <span style="color:var(--orange)">· skipped</span>')}),
     h('div',{class:'mini-actions'},[
       h('button',{onclick:dupSlide,html:'Duplicate'}),
       h('button',{class:'danger',onclick:delSlide,html:'Delete'})
@@ -911,13 +928,9 @@ function mainPane(){
   const scaler=h('div',{class:'stage-scaler',id:'scaler'});
   const stage=h('div',{class:'stage',id:'stage'});
   stage.innerHTML=T[s.type].preview(s.data,ctx);
-  scaler.appendChild(stage); outer.appendChild(scaler); pw.appendChild(outer);
-  m.appendChild(pw);
-  // editor
-  const ed=h('div',{class:'editor'}); const inner=h('div',{class:'editor-inner'});
-  inner.appendChild(h('div',{class:'ed-head'},[ h('span',{class:'ed-badge'},T[s.type].name), h('h2',{},slideLabel(s)) ]));
-  inner.appendChild(buildForm(s));
-  ed.appendChild(inner); m.appendChild(ed);
+  scaler.appendChild(stage); outer.appendChild(scaler); pc.appendChild(outer);
+  pc.appendChild(h('div',{class:'preview-note',html:'<b>Live preview.</b> Edit the fields on the left to change what appears here.'}));
+  m.appendChild(pc);
   return m;
 }
 
