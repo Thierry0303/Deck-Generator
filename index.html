@@ -1661,14 +1661,51 @@ async function loadTemplate(file){
     const parser=new DOMParser(); const layouts=[];
     for(const lf of layoutFiles){ const doc=parser.parseFromString(await zip.file(lf).async('string'),'application/xml');
       const cSld=els(doc,'cSld')[0]; const name=(cSld&&cSld.getAttribute('name'))||lf.split('/').pop();
-      const phs=els(doc,'ph').map(p=>({type:p.getAttribute('type')||'body', idx:p.getAttribute('idx')||null}));
-      layouts.push({name, path:lf, phs});
+      // resolve the master this layout points at (for inherited placeholder geometry)
+      let masterDoc=null;
+      const rp=lf.replace(/slideLayouts\/(slideLayout\d+)\.xml$/,'slideLayouts/_rels/$1.xml.rels');
+      const rf=zip.file(rp);
+      if(rf){ const rd=parser.parseFromString(await rf.async('string'),'application/xml');
+        const mrel=els(rd,'Relationship').find(r=>/slideMaster$/.test(r.getAttribute('Type')));
+        if(mrel){ const mp=resolvePath('ppt/slideLayouts/', mrel.getAttribute('Target')); const mf=zip.file(mp);
+          if(mf) masterDoc=parser.parseFromString(await mf.async('string'),'application/xml'); } }
+      const phs=els(doc,'sp').map(sp=>{ const ph=els(sp,'ph')[0]; if(!ph) return null;
+        const type=ph.getAttribute('type')||'body'; const idx=ph.getAttribute('idx')||null;
+        let g=xfrmOf(sp); if(!g && masterDoc) g=masterPhXfrm(masterDoc,type,idx);
+        return {type, idx, geom:g}; }).filter(Boolean);
+      layouts.push({name, path:lf, phs, content:pickContent(phs)});
     }
     TPL.buf=buf; TPL.layouts=layouts; TPL.name=file.name; state.templateName=file.name; save(); renderApp();
     toast('Template loaded: '+file.name+' — '+layouts.length+' layouts. Export now sits on it.','ok');
   }catch(e){ console.error(e); toast('Not a usable PowerPoint template: '+(e.message||e),'err'); }
 }
 function clearTemplate(){ TPL={buf:null,layouts:[],name:''}; delete state.templateName; save(); renderApp(); toast('Template removed — exports use the built-in design','ok'); }
+
+/* ---- read placeholder geometry (EMU) so content fits the selected layout ---- */
+function xfrmOf(sp){ // first spPr xfrm in this shape
+  const spPr=els(sp,'spPr')[0]; if(!spPr) return null;
+  const off=els(spPr,'off')[0], ext=els(spPr,'ext')[0];
+  if(off&&ext) return {x:+off.getAttribute('x'),y:+off.getAttribute('y'),w:+ext.getAttribute('cx'),h:+ext.getAttribute('cy')};
+  return null;
+}
+function masterPhXfrm(masterDoc,type,idx){ let byBoth=null, byType=null;
+  els(masterDoc,'sp').forEach(sp=>{ const ph=els(sp,'ph')[0]; if(!ph) return;
+    const t=ph.getAttribute('type')||'body'; const ix=ph.getAttribute('idx')||null; const g=xfrmOf(sp); if(!g) return;
+    if(t===type && ix===idx && !byBoth) byBoth=g;
+    if((t===type || (type==='body'&&t==='body')) && !byType) byType=g;
+  });
+  return byBoth||byType||null;
+}
+function pickContent(phs){ // the region a table/chart/KPI should occupy on this layout
+  const skip=['title','ctrTitle','ftr','sldNum','dt','subTitle'];
+  const cand=phs.filter(p=>p.geom && !skip.includes(p.type));
+  cand.sort((a,b)=>(b.geom.w*b.geom.h)-(a.geom.w*a.geom.h));
+  if(cand[0]){ const g=cand[0].geom; return {x:g.x/914400,y:g.y/914400,w:g.w/914400,h:g.h/914400}; }
+  // no content placeholder: sit below the title, above the footer
+  const t=phs.find(p=>(p.type==='title'||p.type==='ctrTitle')&&p.geom);
+  if(t){ const ty=(t.geom.y+t.geom.h)/914400+0.15; return {x:0.6,y:ty,w:12.13,h:Math.max(2,7.05-ty)}; }
+  return {x:0.6,y:1.6,w:12.13,h:5.2};
+}
 
 function autoLayout(type){
   const has=(...keys)=>{ for(const k of keys){ const m=TPL.layouts.find(l=>l.name.toLowerCase().includes(k)); if(m) return m.name; } return null; };
@@ -1753,6 +1790,7 @@ async function buildTemplateSlide(sl, layout, n){
   const addImg=(base64)=>{ imgRid++; const rid='rId'+imgRid; const name='imggen'+n+'_'+imgRid+'.png';
     media.push({name,data:base64}); relPaths.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/'+name+'"/>'); return rid; };
   const t=sl.type;
+  const cr=(layout&&layout.content)||{x:0.6,y:1.7,w:12.13,h:5.0}; // content region from the selected layout
 
   if(t==='cover'){
     shapes+=phShape(phOf(layout,'ctrTitle'),[d.title||''],'Title');
@@ -1776,24 +1814,27 @@ async function buildTemplateSlide(sl, layout, n){
     if(layout.phs.some(x=>x.type==='title'||x.type==='ctrTitle') && d.sub) shapes+=textBox(0.9,4.5,10,0.6,[{t:d.sub,sz:1800,color:C.ink2}]);
   } else if(t==='table'){
     shapes+=phShape(phOf(layout,'title'),[d.title||'Table'],'Title');
-    shapes+=tableXml(0.6,1.9,12.1,(d.header||['Column 1']),(d.rows||[]));
-    if(d.note) shapes+=textBox(0.6,1.9+0.5+(d.rows||[]).length*0.34,12,0.35,[{t:d.note,sz:1000,color:C.ink3}]);
+    shapes+=tableXml(cr.x,cr.y,cr.w,(d.header||['Column 1']),(d.rows||[]));
+    if(d.note) shapes+=textBox(cr.x,cr.y+0.5+(d.rows||[]).length*0.34,cr.w,0.35,[{t:d.note,sz:1000,color:C.ink3}]);
   } else if(t==='kpi'){
     shapes+=phShape(phOf(layout,'title'),[d.title||''],'Title');
-    if(d.headline) shapes+=textBox(0.6,1.65,12.1,0.9,[{t:d.headline,sz:1300,color:C.ink2}]);
+    let y=cr.y;
+    if(d.headline){ shapes+=textBox(cr.x,y,cr.w,0.8,[{t:d.headline,sz:1300,color:C.ink2}]); y+=0.9; }
     const hdr=['Metric','Value','Note']; const rows=(d.cards||[]).map(c=>[c.label||'', ((c.value||'')+' '+(c.unit||'')).trim(), c.note||'']);
-    shapes+=tableXml(0.6,2.7,12.1,hdr,rows);
+    shapes+=tableXml(cr.x,y,cr.w,hdr,rows); y+=0.4+rows.length*0.34+0.25;
     const insights=(d.insights||[]).map(x=>(x.title?(x.title+': '):'')+(x.text||'')).filter(Boolean);
-    if(insights.length){ let yy=2.7+0.4+rows.length*0.34+0.25; shapes+=textBox(0.6,yy,12.1,1.4,[{t:insights.join('   •   '),sz:1100,color:C.ink2}]); }
+    if(insights.length) shapes+=textBox(cr.x,y,cr.w,Math.max(0.6,cr.y+cr.h-y),[{t:insights.join('   •   '),sz:1100,color:C.ink2}]);
   } else if(t==='chart'){
     shapes+=phShape(phOf(layout,'title'),[d.title||'Chart'],'Title');
-    let topY=1.7;
-    if(d.lead){ shapes+=textBox(0.6,1.55,12.1,0.5,[{t:d.lead,sz:1200,color:C.ink2}]); topY=2.15; }
-    try{ const W=1900, H=Math.round(W*(d.callout?0.44:0.5));
-      const b64=await svgToPng(chartSVG(d, (d.callout?W*0.72:W), H), (d.callout?Math.round(W*0.72):W), H);
-      const cw=d.callout?9.0:12.1; shapes+=picXml(addImg(b64),0.6,topY,cw,cw*H/(d.callout?W*0.72:W));
-    }catch(e){ shapes+=textBox(0.6,topY,12,1,[{t:'[chart image could not be rendered]',sz:1200,color:C.warn}]); }
-    if(d.callout) shapes+=textBox(9.9,topY+0.4,2.9,2.0,[{t:d.callout,sz:1500,b:true,color:C.navy}]);
+    let topY=cr.y, ah=cr.h;
+    if(d.lead){ shapes+=textBox(cr.x,cr.y,cr.w,0.4,[{t:d.lead,sz:1200,color:C.ink2}]); topY=cr.y+0.5; ah=cr.h-0.5; }
+    const calloutW = d.callout? Math.min(2.9, cr.w*0.26) : 0;
+    const chartW = cr.w - (calloutW? calloutW+0.2 : 0);
+    const PXI=150;
+    try{ const b64=await svgToPng(chartSVG(d, Math.round(chartW*PXI), Math.round(ah*PXI)), Math.round(chartW*PXI), Math.round(ah*PXI));
+      shapes+=picXml(addImg(b64), cr.x, topY, chartW, ah);
+    }catch(e){ shapes+=textBox(cr.x,topY,chartW,1,[{t:'[chart image could not be rendered]',sz:1200,color:C.warn}]); }
+    if(d.callout) shapes+=textBox(cr.x+chartW+0.2, topY+0.3, calloutW, Math.min(ah-0.3,2.2),[{t:d.callout,sz:1400,b:true,color:C.navy}]);
   } else {
     shapes+=phShape(phOf(layout,'title'),[d.title||''],'Title');
   }

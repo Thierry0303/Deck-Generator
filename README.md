@@ -72,6 +72,12 @@ What's native vs image: titles, text, bullets and **tables stay native and
 editable**; **charts are placed as high-resolution images** so they sit exactly
 on the branded layout. Slide numbers and footers come from your template.
 
+**Content auto-fits the selected layout.** The tool reads each layout's content
+placeholder geometry from the Slide Master (following inheritance) and drops the
+table, chart or KPI block into that exact region — so switching a slide's layout
+in the dropdown re-positions its content to match. If a layout has no content
+placeholder (e.g. a Title-Only layout), content is placed just below the title.
+
 To go back to the built-in design, click the **×** on the template chip.
 
 > Tip: the template is held in memory for the session. After a page reload,
