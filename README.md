@@ -52,6 +52,31 @@ reads titles, tables and chart data to give you a starting point — but because
 hand-built decks vary, this is best-effort: **check every value** after import.
 Decks made by this tool always restore perfectly.
 
+## Use your own PowerPoint template (Slide Master)
+
+Make every exported slide sit on your corporate template — its fonts, colours,
+backgrounds, logos, footers and layouts:
+
+1. Click **Slide Master** in the toolbar and upload your `.pptx` or `.potx`
+   template once (per session).
+2. The tool reads your template's Slide Master layouts. Each builder slide is
+   mapped to the best-matching layout automatically (cover → a Title layout,
+   dividers → a Section Divider layout, content → a Title-and-Content layout,
+   etc.). You can override the layout per slide from the **PowerPoint layout**
+   dropdown that appears above each slide's fields.
+3. **Download on template** builds a deck onto your real template: the sample
+   slides are removed, and new slides are written into your layouts' actual
+   placeholders, keeping your master's branding.
+
+What's native vs image: titles, text, bullets and **tables stay native and
+editable**; **charts are placed as high-resolution images** so they sit exactly
+on the branded layout. Slide numbers and footers come from your template.
+
+To go back to the built-in design, click the **×** on the template chip.
+
+> Tip: the template is held in memory for the session. After a page reload,
+> re-upload it (the toolbar reminds you) before exporting on template.
+
 ## Slide types
 
 | Type | Use for |

@@ -179,6 +179,15 @@ textarea{resize:vertical;line-height:1.45}
 :root[data-theme="dark"] .deck-select button.on,:root:not([data-theme="light"]) .deck-select button.on{color:#12122a}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .deck-select button.on{color:#12122a}}
 .spacer{flex:1}
+.tpl-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 8px 6px 11px;border-radius:99px;background:rgba(31,202,126,.12);border:1px solid rgba(31,202,126,.45);font-size:12px;color:var(--green-d);font-weight:600;max-width:220px}
+.tpl-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+.tpl-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpl-x{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;color:var(--ink3);flex-shrink:0}
+.tpl-x:hover{background:rgba(234,96,42,.15);color:var(--orange)}
+.layout-pick{display:flex;align-items:center;gap:11px;background:rgba(31,202,126,.07);border:1px solid rgba(31,202,126,.3);border-radius:var(--r);padding:11px 13px;margin-bottom:15px}
+.layout-pick .lp-ic{width:30px;height:30px;border-radius:7px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--green-d);flex-shrink:0}
+.layout-pick .lp-ic svg{width:17px;height:17px}
+.layout-pick .lp-lab{font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:5px}
 .tbtn{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;color:var(--ink2);background:var(--panel2);border:1px solid var(--line);transition:.12s;white-space:nowrap}
 .tbtn:hover{border-color:var(--line2);background:var(--panel)}
 .tbtn svg{width:15px;height:15px}
@@ -425,7 +434,8 @@ const IC = {
   reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>',
   roll:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3-6.7L21 8m0-5v5h-5"/></svg>',
   upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>',
-  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4M12 13v4M10 15h4"/></svg>'
+  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4M12 13v4M10 15h4"/></svg>',
+  master:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M7 12h6M7 15h9M9 21h6M12 18v3"/></svg>'
 };
 
 /* ---------- preview geometry (13.333 x 7.5 in @96dpi = 1280x720) ---------- */
@@ -1032,8 +1042,26 @@ function topbar(){
   bar.appendChild(h('button',{class:'tbtn',title:'Upload last month’s deck (.pptx) or a saved .json to prepopulate',onclick:importProject,html:IC.upload+'<span class="lbl">Upload last review</span>'}));
   bar.appendChild(h('button',{class:'tbtn',title:'Guided panel: enter only this month’s new values',onclick:openUpdatePanel,html:IC.calendar+'<span class="lbl">Monthly update</span>'}));
   bar.appendChild(h('button',{class:'tbtn',title:'Save your work as a .json file',onclick:exportJSON,html:IC.save+'<span class="lbl">Save</span>'}));
-  bar.appendChild(h('button',{class:'tbtn primary',onclick:exportPPTX,html:IC.down+'<span class="lbl">Download PPTX</span>'}));
+  bar.appendChild(templateControl());
+  bar.appendChild(h('button',{class:'tbtn primary',onclick:exportPPTX,html:IC.down+'<span class="lbl">'+(TPL.buf?'Download on template':'Download PPTX')+'</span>'}));
   return bar;
+}
+
+function pickTemplate(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='.pptx,.potx';
+  inp.onchange=()=>{ if(inp.files[0]) loadTemplate(inp.files[0]); }; inp.click(); }
+
+function templateControl(){
+  if(TPL.buf){
+    const chip=h('div',{class:'tpl-chip',title:'Exports sit on this Slide Master template'});
+    chip.appendChild(h('span',{class:'tpl-dot'}));
+    chip.appendChild(h('span',{class:'tpl-name'}, TPL.name.replace(/\.(pptx|potx)$/i,'')));
+    chip.appendChild(h('button',{class:'tpl-x',title:'Remove template',onclick:clearTemplate,html:'&times;'}));
+    return chip;
+  }
+  if(state.templateName){ // loaded earlier this session but buffer lost on reload
+    return h('button',{class:'tbtn',title:'Re-upload your template ('+esc(state.templateName)+') to sit exports on it',onclick:pickTemplate,html:IC.master+'<span class="lbl">Re-upload template</span>'});
+  }
+  return h('button',{class:'tbtn',title:'Upload your corporate .pptx/.potx so exports use its Slide Master (fonts, logos, layouts, footers)',onclick:pickTemplate,html:IC.master+'<span class="lbl">Slide Master</span>'});
 }
 
 function sidebar(){
@@ -1116,6 +1144,7 @@ function mainPane(){
   const ed=h('div',{class:'editor-col'}); const inner=h('div',{class:'editor-inner'});
   inner.appendChild(h('div',{class:'ed-head'},[ h('span',{class:'ed-badge'},T[s.type].name), h('h2',{},slideLabel(s)) ]));
   inner.appendChild(h('div',{class:'ed-lead'},'Edit any value below — every field updates the live preview on the right and feeds the PowerPoint export. This is where you change the SLA figures, volumes, table rows and chart numbers each month.'));
+  if(TPL.layouts.length) inner.appendChild(layoutPicker(s));
   inner.appendChild(buildForm(s));
   ed.appendChild(inner); m.appendChild(ed);
 
@@ -1169,6 +1198,18 @@ function buildForm(s){
   fields.forEach(f=>card.appendChild(renderField(f,d)));
   wrap.appendChild(card);
   return wrap;
+}
+
+function layoutPicker(s){
+  const box=h('div',{class:'layout-pick'});
+  box.appendChild(h('div',{class:'lp-ic',html:IC.master}));
+  const wrap=h('div',{style:{flex:'1'}});
+  wrap.appendChild(h('div',{class:'lp-lab'},'PowerPoint layout (from your Slide Master)'));
+  const sel=h('select',{onchange:e=>{ s.layout=e.target.value; onEdit(); }});
+  const cur=s.layout||autoLayout(s.type);
+  TPL.layouts.forEach(l=>sel.appendChild(h('option',{value:l.name,selected:l.name===cur?'selected':false}, l.name)));
+  wrap.appendChild(sel); box.appendChild(wrap);
+  return box;
 }
 
 function renderField(f,d){
@@ -1478,6 +1519,7 @@ async function legacyParse(zip){
    EXPORT PPTX  (embeds the project data for a clean round-trip)
    ============================================================ */
 async function exportPPTX(){
+  if(TPL.buf){ return exportOnTemplate(); }
   if(typeof PptxGenJS==='undefined'){ toast('PowerPoint library not loaded — check your connection and reload','err'); return; }
   const enabled=state.slides.filter(s=>s.enabled);
   if(!enabled.length){ toast('No slides are included','err'); return; }
@@ -1593,6 +1635,230 @@ function openUpdatePanel(){
   ]));
   back.appendChild(modal); document.body.appendChild(back);
   setTimeout(()=>{ const fi=modal.querySelector('input[type=number]'); if(fi) fi.focus(); },60);
+}
+
+/* ============================================================
+   SLIDE-MASTER TEMPLATE ENGINE
+   Upload a corporate .pptx/.potx once; export builds slides ONTO its real
+   Slide Master layouts (its fonts, colours, backgrounds, logos, footers).
+   Text, titles, bullets and tables are native; charts are placed as crisp
+   images so they sit exactly on the branded layout.
+   ============================================================ */
+let TPL = { buf:null, layouts:[], name:'' };
+const EMU = inch => Math.round(inch*914400);
+const A_NS='xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"';
+const R_NS='xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+const P_NS='xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+
+async function loadTemplate(file){
+  if(typeof JSZip==='undefined'){ toast('Zip library not loaded — reload','err'); return; }
+  try{
+    const buf=await file.arrayBuffer();
+    const zip=await JSZip.loadAsync(buf);
+    const layoutFiles=Object.keys(zip.files).filter(n=>/^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(n));
+    if(!layoutFiles.length || !Object.keys(zip.files).some(n=>/slideMasters\/slideMaster\d+\.xml/.test(n)))
+      throw new Error('no slide master / layouts found');
+    const parser=new DOMParser(); const layouts=[];
+    for(const lf of layoutFiles){ const doc=parser.parseFromString(await zip.file(lf).async('string'),'application/xml');
+      const cSld=els(doc,'cSld')[0]; const name=(cSld&&cSld.getAttribute('name'))||lf.split('/').pop();
+      const phs=els(doc,'ph').map(p=>({type:p.getAttribute('type')||'body', idx:p.getAttribute('idx')||null}));
+      layouts.push({name, path:lf, phs});
+    }
+    TPL.buf=buf; TPL.layouts=layouts; TPL.name=file.name; state.templateName=file.name; save(); renderApp();
+    toast('Template loaded: '+file.name+' — '+layouts.length+' layouts. Export now sits on it.','ok');
+  }catch(e){ console.error(e); toast('Not a usable PowerPoint template: '+(e.message||e),'err'); }
+}
+function clearTemplate(){ TPL={buf:null,layouts:[],name:''}; delete state.templateName; save(); renderApp(); toast('Template removed — exports use the built-in design','ok'); }
+
+function autoLayout(type){
+  const has=(...keys)=>{ for(const k of keys){ const m=TPL.layouts.find(l=>l.name.toLowerCase().includes(k)); if(m) return m.name; } return null; };
+  let r;
+  if(type==='cover') r=has('title slide with image','title slide','title');
+  else if(type==='divider') r=has('section divider green','section divider','divider','section header');
+  else if(type==='agenda') r=has('agenda','title and content','single line title and content');
+  else if(type==='closing') r=has('closing','ending','thank');
+  else if(type==='bullets') r=has('single line title and content','title and content','content');
+  else r=has('single line title and content','title only','title and content','white std','content'); // table/chart/kpi
+  return r || (TPL.layouts[0]&&TPL.layouts[0].name) || '';
+}
+function layoutOf(sl){ return TPL.layouts.find(l=>l.name===(sl.layout||autoLayout(sl.type))) || TPL.layouts[0]; }
+function phOf(layout, role){ const p=layout?layout.phs:[];
+  if(role==='title') return p.find(x=>x.type==='title'||x.type==='ctrTitle')||{type:'title',idx:null};
+  if(role==='ctrTitle') return p.find(x=>x.type==='ctrTitle')||p.find(x=>x.type==='title')||{type:'ctrTitle',idx:null};
+  if(role==='subTitle') return p.find(x=>x.type==='subTitle')||p.find(x=>x.type==='body')||{type:'subTitle',idx:'1'};
+  if(role==='body') return p.find(x=>x.type==='body'&&x.idx)||p.find(x=>x.type==='body')||{type:'body',idx:'1'};
+  if(role==='ftr') return p.find(x=>x.type==='ftr');
+  if(role==='sldNum') return p.find(x=>x.type==='sldNum');
+  return null;
+}
+
+/* ---- OOXML shape builders (strings) ---- */
+let _sid=1; function sid(){ return ++_sid; }
+function phAttr(ph){ return 'type="'+ph.type+'"'+(ph.idx?(' idx="'+ph.idx+'"'):''); }
+function parasXml(lines){ return (lines&&lines.length?lines:['']).map(t=>
+  '<a:p><a:r><a:t>'+esc(t)+'</a:t></a:r></a:p>').join(''); }
+function phShape(ph, lines, name){
+  return '<p:sp><p:nvSpPr><p:cNvPr id="'+sid()+'" name="'+esc(name||ph.type)+'"/>'
+    +'<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph '+phAttr(ph)+'/></p:nvPr></p:nvSpPr>'
+    +'<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>'+parasXml(lines)+'</p:txBody></p:sp>';
+}
+function ftrShape(ph, text){ if(!ph) return ''; return '<p:sp><p:nvSpPr><p:cNvPr id="'+sid()+'" name="Footer"/>'
+  +'<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph '+phAttr(ph)+'/></p:nvPr></p:nvSpPr>'
+  +'<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>'+esc(text)+'</a:t></a:r></a:p></p:txBody></p:sp>'; }
+function numShape(ph){ if(!ph) return ''; return '<p:sp><p:nvSpPr><p:cNvPr id="'+sid()+'" name="Slide Number"/>'
+  +'<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph '+phAttr(ph)+'/></p:nvPr></p:nvSpPr>'
+  +'<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{'+guid()+'}" type="slidenum"><a:t>#</a:t></a:fld></a:p></p:txBody></p:sp>'; }
+function guid(){ return 'XXXXXXXX-XXXX-4XXX-YXXX-XXXXXXXXXXXX'.replace(/[XY]/g,c=>{const r=Math.random()*16|0;return (c==='X'?r:(r&0x3|0x8)).toString(16).toUpperCase();}); }
+function textBox(xI,yI,wI,hI,runs){ // runs: [{t,sz,b,color}]
+  const rs=runs.map(r=>'<a:r><a:rPr lang="en-GB" sz="'+(r.sz||1200)+'"'+(r.b?' b="1"':'')+' dirty="0">'
+    +(r.color?'<a:solidFill><a:srgbClr val="'+r.color+'"/></a:solidFill>':'')+'</a:rPr><a:t>'+esc(r.t)+'</a:t></a:r>').join('');
+  return '<p:sp><p:nvSpPr><p:cNvPr id="'+sid()+'" name="TextBox"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'
+    +'<p:spPr><a:xfrm><a:off x="'+EMU(xI)+'" y="'+EMU(yI)+'"/><a:ext cx="'+EMU(wI)+'" cy="'+EMU(hI)+'"/></a:xfrm>'
+    +'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>'
+    +'<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/><a:p>'+rs+'</a:p></p:txBody></p:sp>';
+}
+function tableXml(xI,yI,wI,header,rows){
+  const cols=header.length||1; const colW=EMU(wI/cols);
+  const cell=(t,opt)=>{ opt=opt||{}; return '<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r>'
+    +'<a:rPr lang="en-GB" sz="'+(opt.sz||1100)+'"'+(opt.b?' b="1"':'')+'>'
+    +(opt.color?'<a:solidFill><a:srgbClr val="'+opt.color+'"/></a:solidFill>':'')+'</a:rPr>'
+    +'<a:t>'+esc(t==null?'':t)+'</a:t></a:r></a:p></a:txBody>'
+    +'<a:tcPr'+(opt.fill?'><a:solidFill><a:srgbClr val="'+opt.fill+'"/></a:solidFill></a:tcPr':'/')+'></a:tc>'; };
+  let trs='<a:tr h="'+EMU(0.4)+'">'+header.map(hh=>cell(hh,{b:true,color:'FFFFFF',fill:C.navy})).join('')+'</a:tr>';
+  rows.forEach((r,ri)=>{ trs+='<a:tr h="'+EMU(0.34)+'">';
+    for(let c=0;c<cols;c++) trs+=cell(r[c],{fill:ri%2?'FFFFFF':C.panel,color:C.ink});
+    trs+='</a:tr>'; });
+  const grid='<a:tblGrid>'+header.map(()=>'<a:gridCol w="'+colW+'"/>').join('')+'</a:tblGrid>';
+  return '<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="'+sid()+'" name="Table"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>'
+    +'<p:xfrm><a:off x="'+EMU(xI)+'" y="'+EMU(yI)+'"/><a:ext cx="'+EMU(wI)+'" cy="'+EMU(0.4+rows.length*0.34)+'"/></p:xfrm>'
+    +'<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">'
+    +'<a:tbl><a:tblPr firstRow="1" bandRow="1"/>'+grid+trs+'</a:tbl></a:graphicData></a:graphic></p:graphicFrame>';
+}
+function picXml(rId,xI,yI,wI,hI){ return '<p:pic><p:nvPicPr><p:cNvPr id="'+sid()+'" name="Chart"/>'
+  +'<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>'
+  +'<p:blipFill><a:blip r:embed="'+rId+'"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>'
+  +'<p:spPr><a:xfrm><a:off x="'+EMU(xI)+'" y="'+EMU(yI)+'"/><a:ext cx="'+EMU(wI)+'" cy="'+EMU(hI)+'"/></a:xfrm>'
+  +'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>'; }
+
+function svgToPng(svg,w,h){ return new Promise((res,rej)=>{ const img=new Image();
+  img.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=w; c.height=h; const cx=c.getContext('2d');
+    cx.fillStyle='#ffffff'; cx.fillRect(0,0,w,h); cx.drawImage(img,0,0,w,h); res(c.toDataURL('image/png').split(',')[1]); }catch(e){ rej(e); } };
+  img.onerror=()=>rej(new Error('svg render failed'));
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); }); }
+
+/* ---- build one slide onto a template layout ---- */
+async function buildTemplateSlide(sl, layout, n){
+  const d=sl.data; const relPaths=['<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../'+layout.path.replace('ppt/','')+'"/>'];
+  const media=[]; let shapes=''; let imgRid=1;
+  const addImg=(base64)=>{ imgRid++; const rid='rId'+imgRid; const name='imggen'+n+'_'+imgRid+'.png';
+    media.push({name,data:base64}); relPaths.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/'+name+'"/>'); return rid; };
+  const t=sl.type;
+
+  if(t==='cover'){
+    shapes+=phShape(phOf(layout,'ctrTitle'),[d.title||''],'Title');
+    const subLines=[]; if(d.client) subLines.push(d.client); if(d.sub) subLines.push(d.sub); if(d.date) subLines.push(d.date);
+    (d.presenters||[]).forEach(p=>subLines.push((p.name||'')+(p.role?(' — '+p.role):'')));
+    shapes+=phShape(phOf(layout,'subTitle'),subLines,'Subtitle');
+  } else if(t==='divider'){
+    shapes+=phShape(phOf(layout,'ctrTitle'),[d.title||d.kicker||''],'Title');
+  } else if(t==='agenda'){
+    shapes+=phShape(phOf(layout,'title'),[d.title||'Agenda'],'Title');
+    shapes+=phShape(phOf(layout,'body'),(d.items||[]),'Content');
+  } else if(t==='bullets'){
+    shapes+=phShape(phOf(layout,'title'),[d.title||''],'Title');
+    const lines=[]; if(d.lead) lines.push(d.lead); (d.bullets||[]).forEach(b=>lines.push(b));
+    shapes+=phShape(phOf(layout,'body'),lines,'Content');
+  } else if(t==='closing'){
+    const th=phOf(layout,'title'); const bodyPh=phOf(layout,'body');
+    // Closing layouts often have only a body placeholder
+    if(layout.phs.some(x=>x.type==='title'||x.type==='ctrTitle')) shapes+=phShape(th,[d.title||'Thank you!'],'Title');
+    else shapes+=phShape(bodyPh,[d.title||'Thank you!',d.sub||''],'Body');
+    if(layout.phs.some(x=>x.type==='title'||x.type==='ctrTitle') && d.sub) shapes+=textBox(0.9,4.5,10,0.6,[{t:d.sub,sz:1800,color:C.ink2}]);
+  } else if(t==='table'){
+    shapes+=phShape(phOf(layout,'title'),[d.title||'Table'],'Title');
+    shapes+=tableXml(0.6,1.9,12.1,(d.header||['Column 1']),(d.rows||[]));
+    if(d.note) shapes+=textBox(0.6,1.9+0.5+(d.rows||[]).length*0.34,12,0.35,[{t:d.note,sz:1000,color:C.ink3}]);
+  } else if(t==='kpi'){
+    shapes+=phShape(phOf(layout,'title'),[d.title||''],'Title');
+    if(d.headline) shapes+=textBox(0.6,1.65,12.1,0.9,[{t:d.headline,sz:1300,color:C.ink2}]);
+    const hdr=['Metric','Value','Note']; const rows=(d.cards||[]).map(c=>[c.label||'', ((c.value||'')+' '+(c.unit||'')).trim(), c.note||'']);
+    shapes+=tableXml(0.6,2.7,12.1,hdr,rows);
+    const insights=(d.insights||[]).map(x=>(x.title?(x.title+': '):'')+(x.text||'')).filter(Boolean);
+    if(insights.length){ let yy=2.7+0.4+rows.length*0.34+0.25; shapes+=textBox(0.6,yy,12.1,1.4,[{t:insights.join('   •   '),sz:1100,color:C.ink2}]); }
+  } else if(t==='chart'){
+    shapes+=phShape(phOf(layout,'title'),[d.title||'Chart'],'Title');
+    let topY=1.7;
+    if(d.lead){ shapes+=textBox(0.6,1.55,12.1,0.5,[{t:d.lead,sz:1200,color:C.ink2}]); topY=2.15; }
+    try{ const W=1900, H=Math.round(W*(d.callout?0.44:0.5));
+      const b64=await svgToPng(chartSVG(d, (d.callout?W*0.72:W), H), (d.callout?Math.round(W*0.72):W), H);
+      const cw=d.callout?9.0:12.1; shapes+=picXml(addImg(b64),0.6,topY,cw,cw*H/(d.callout?W*0.72:W));
+    }catch(e){ shapes+=textBox(0.6,topY,12,1,[{t:'[chart image could not be rendered]',sz:1200,color:C.warn}]); }
+    if(d.callout) shapes+=textBox(9.9,topY+0.4,2.9,2.0,[{t:d.callout,sz:1500,b:true,color:C.navy}]);
+  } else {
+    shapes+=phShape(phOf(layout,'title'),[d.title||''],'Title');
+  }
+  // footer + slide number from layout placeholders
+  shapes+=ftrShape(phOf(layout,'ftr'), state.footer||'');
+  shapes+=numShape(phOf(layout,'sldNum'));
+
+  const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    +'<p:sld '+A_NS+' '+R_NS+' '+P_NS+'><p:cSld><p:spTree>'
+    +'<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+    +'<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+    +shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:overrideClrMapping bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/></p:clrMapOvr></p:sld>';
+  const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+relPaths.join('')+'</Relationships>';
+  return { xml, rels, media };
+}
+
+async function exportOnTemplate(){
+  const enabled=state.slides.filter(s=>s.enabled);
+  if(!enabled.length){ toast('No slides are included','err'); return; }
+  toast('Building deck on your template…');
+  try{
+    const parser=new DOMParser();
+    const zip=await JSZip.loadAsync(TPL.buf);      // fresh clone each export
+    // remove existing slides (parts + rels) and their presentation rels
+    let relsXml=await zip.file('ppt/_rels/presentation.xml.rels').async('string');
+    const relDoc=parser.parseFromString(relsXml,'application/xml');
+    const rels=[...relDoc.getElementsByTagName('*')].filter(LN('Relationship'));
+    let maxNum=0; rels.forEach(r=>{ const m=(r.getAttribute('Id')||'').match(/rId(\d+)/); if(m) maxNum=Math.max(maxNum,+m[1]); });
+    rels.filter(r=>/\/slide$/.test(r.getAttribute('Type'))).forEach(r=>{ const tgt=r.getAttribute('Target');
+      const p=resolvePath('ppt/',tgt); zip.remove(p); zip.remove(p.replace(/slides\/(slide\d+)\.xml$/,'slides/_rels/$1.xml.rels'));
+      r.parentNode.removeChild(r); });
+    // content types: drop old slide overrides, keep the rest
+    let ct=await zip.file('[Content_Types].xml').async('string');
+    ct=ct.replace(/<Override PartName="\/ppt\/slides\/slide\d+\.xml"[^>]*\/>/g,'');
+    if(!/Extension="png"/i.test(ct)) ct=ct.replace('</Types>','<Default Extension="png" ContentType="image/png"/></Types>');
+    // build new slides
+    _sid=1; const newRels=[]; const sldIds=[]; let rid=maxNum+1, sldId=256;
+    for(let i=0;i<enabled.length;i++){ const n=i+1; const sl=enabled[i]; const layout=layoutOf(sl);
+      const built=await buildTemplateSlide(sl, layout, n);
+      zip.file('ppt/slides/slide'+n+'.xml', built.xml);
+      zip.file('ppt/slides/_rels/slide'+n+'.xml.rels', built.rels);
+      built.media.forEach(m=>zip.file('ppt/media/'+m.name, m.data, {base64:true}));
+      ct=ct.replace('</Types>','<Override PartName="/ppt/slides/slide'+n+'.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>');
+      const id='rId'+(rid++); newRels.push('<Relationship Id="'+id+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide'+n+'.xml"/>');
+      sldIds.push('<p:sldId id="'+(sldId++)+'" r:id="'+id+'"/>');
+    }
+    // embed the project so the exported deck round-trips too
+    zip.file('deckbuilder/project.json', JSON.stringify(state));
+    if(!/Extension="json"/i.test(ct)) ct=ct.replace('</Types>','<Default Extension="json" ContentType="application/json"/></Types>');
+    // write rels + presentation + content types
+    let outRels=new XMLSerializer().serializeToString(relDoc);
+    if(!/^<\?xml/.test(outRels)) outRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+outRels;
+    outRels=outRels.replace('</Relationships>', newRels.join('')+'</Relationships>');
+    zip.file('ppt/_rels/presentation.xml.rels', outRels);
+    let pres=await zip.file('ppt/presentation.xml').async('string');
+    if(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/.test(pres)) pres=pres.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,'<p:sldIdLst>'+sldIds.join('')+'</p:sldIdLst>');
+    else if(/<p:sldIdLst\/>/.test(pres)) pres=pres.replace('<p:sldIdLst/>','<p:sldIdLst>'+sldIds.join('')+'</p:sldIdLst>');
+    else pres=pres.replace(/(<\/p:sldMasterIdLst>)/,'$1<p:sldIdLst>'+sldIds.join('')+'</p:sldIdLst>');
+    zip.file('ppt/presentation.xml', pres);
+    zip.file('[Content_Types].xml', ct);
+    const blob=await zip.generateAsync({type:'blob'});
+    downloadBlob(blob, (state.fileName||'Review_Deck')+'_on_template.pptx');
+    toast('Downloaded deck on your template ('+enabled.length+' slides)','ok');
+  }catch(e){ console.error(e); toast('Template export failed: '+(e.message||e),'err'); }
 }
 
 /* ============================================================
