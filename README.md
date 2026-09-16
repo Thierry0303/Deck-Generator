@@ -1,108 +1,33 @@
-# Review Deck Builder
+# Deck Updater
 
-A standalone, single-file web tool that speeds up building the **Monthly Service
-Review** and **Quarterly Business Review (QBR)** decks. Fill in a series of
-fields each month, toggle slides on/off, add or remove slides, and export a
-native **PowerPoint (.pptx)** file styled in the Outseer brand.
+A single-file web tool that opens your PowerPoint, turns its content into
+editable fields, and lets you produce the next version **without changing the
+design**. Everything runs in your browser — nothing is uploaded anywhere.
+
+Ideal for a recurring monthly/quarterly review: open last period's deck, update
+the numbers, add or remove a slide, download the new deck.
 
 ## How to use
 
-1. Open **`index.html`** in any modern browser (double-click the file, or
-   drag it into a browser tab). No install or server needed.
-2. Pick a starting template at the top — **Monthly Review** or **QBR**. Each
-   loads a ready-made slide sequence pre-filled with example content.
-3. Work through the slide list on the left:
-   - Click a slide to edit its fields on the right; the preview updates live.
-   - Use the **toggle** on each slide to include or skip it in the export.
-   - **Drag** slides to reorder, or use **Duplicate** / **Delete**.
-   - **Add slide** to insert any block type (title, agenda, divider, bullets,
-     KPI cards, table, chart, closing).
-4. Click **Download PPTX** to generate the PowerPoint. Skipped slides are
-   left out and page numbers renumber automatically.
-
-## Saving your work
-
-- **Save** downloads a `.json` file with everything you've entered.
-- **Open** loads a `.json` file back in — so next month you can start from
-  last month's deck and just update the numbers.
-- Your work is also auto-saved in the browser (local storage) between visits.
-
-## Monthly workflow — carry last month forward
-
-You don't start from scratch each month:
-
-1. **Upload last review** — click it and pick either last month's saved `.json`
-   **or last month's PowerPoint that this tool produced**. Every `.pptx` the tool
-   exports carries its data invisibly inside the file, so re-uploading it
-   restores the whole deck exactly.
-2. The **Monthly update** panel opens automatically. Set the new reporting
-   month and type only the values that changed:
-   - each **12-month trend** chart (SLA, DDoS, case volumes) rolls its window
-     forward one month and asks for the new month's value (last month's value is
-     shown for reference);
-   - **KPI cards** show their current figures to overwrite.
-3. Click **Apply updates**, review, then **Download PPTX**.
-
-You can reopen the Monthly update panel any time from the toolbar.
-
-### Importing a hand-made deck (best-effort)
-
-You can also upload a PowerPoint that was **not** made by this tool. The tool
-reads titles, tables and chart data to give you a starting point — but because
-hand-built decks vary, this is best-effort: **check every value** after import.
-Decks made by this tool always restore perfectly.
-
-## Use your own PowerPoint template (Slide Master)
-
-Make every exported slide sit on your corporate template — its fonts, colours,
-backgrounds, logos, footers and layouts:
-
-1. Click **Slide Master** in the toolbar and upload your `.pptx` or `.potx`
-   template once (per session).
-2. The tool reads your template's Slide Master layouts. Each builder slide is
-   mapped to the best-matching layout automatically (cover → a Title layout,
-   dividers → a Section Divider layout, content → a Title-and-Content layout,
-   etc.). You can override the layout per slide from the **PowerPoint layout**
-   dropdown that appears above each slide's fields.
-3. **Download on template** builds a deck onto your real template: the sample
-   slides are removed, and new slides are written into your layouts' actual
-   placeholders, keeping your master's branding.
-
-Everything is native and editable: titles, text, bullets, tables **and charts**.
-Charts are written as real PowerPoint charts and pick up your template theme's
-colours automatically, so you can click, restyle and edit their data in
-PowerPoint. Slide numbers and footers come from your template.
-
-**Content auto-fits the selected layout.** The tool reads each layout's content
-placeholder geometry from the Slide Master (following inheritance) and drops the
-table, chart or KPI block into that exact region — so switching a slide's layout
-in the dropdown re-positions its content to match. If a layout has no content
-placeholder (e.g. a Title-Only layout), content is placed just below the title.
-
-To go back to the built-in design, click the **×** on the template chip.
-
-> Tip: the template is held in memory for the session. After a page reload,
-> re-upload it (the toolbar reminds you) before exporting on template.
-
-## Slide types
-
-| Type | Use for |
-|------|---------|
-| Title / Cover | Client, deck title, period, date, presenters |
-| Agenda | Numbered list of topics |
-| Section Divider | Full-bleed section breaks |
-| Bulleted Content | Title, lead line and bullet points |
-| KPI / Stat Cards | Headline + metric cards + "what this means" (e.g. DDoS summary) |
-| Table | Any grid — attendees, actions log, SLA summary, peer comparison |
-| Chart | Column, stacked, bar, line, pie or doughnut with editable data |
-| Closing | Thank-you / sign-off |
+1. Open **`index.html`** in any modern browser (double-click it).
+2. **Open .pptx** — choose your presentation (or drag it onto the page).
+3. The left panel lists every slide. Click one to edit its content on the right:
+   - **Text** — titles, bullets and paragraphs.
+   - **Tables** — every cell.
+   - **Charts** — series names, category labels and each value.
+4. **Add month** (top bar) — appends this period's figures to every chart in one
+   step: type the new label (e.g. "Sep 26") and each series' latest value.
+5. **Duplicate** / **Delete** slides from the left panel, and drag to reorder.
+6. **Download .pptx** — writes your edits back into the original file and saves
+   `<name>_updated.pptx`. The master, layouts, fonts, logos, images and styling
+   are all preserved exactly, because the tool edits your file in place rather
+   than rebuilding it.
 
 ## Notes
 
-- **Works fully offline.** The PowerPoint engine (PptxGenJS) and zip library
-  (JSZip) are bundled inside `index.html`, so it works with no internet and on
-  networks that block external scripts. Nothing you enter leaves your machine.
-  (Fonts are the only online extra; without a connection the tool falls back to
-  system fonts — everything still works.)
-- Charts are exported as **native, editable PowerPoint charts**, and tables as
-  real tables, so you can fine-tune them in PowerPoint afterwards.
+- Works fully offline — the zip engine is bundled inside `index.html`.
+- Editing a paragraph keeps the formatting of its first run.
+- Duplicated slides get independent copies of their charts, so editing one does
+  not change the other.
+- There is no in-app visual preview (the styled result lives in PowerPoint) —
+  download to see the finished slides.
