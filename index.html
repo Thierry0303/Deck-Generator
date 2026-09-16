@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Deck Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- PptxGenJS (client-side .pptx generation) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1B1464; --green:#1FCA7E; --green-d:#159c60;
+  --purple:#5654AF; --teal:#34D3D8; --orange:#EA602A; --magenta:#B51596; --lime:#CBDD00;
+  --ink:#171732; --ink2:#43435f; --ink3:#71718c;
+  --ground:#eef0f6; --panel:#ffffff; --panel2:#f6f7fb;
+  --line:#e0e2ee; --line2:#d0d3e4;
+  --ok:#1FCA7E; --warn:#EA602A; --closed:#71718c;
+  --shadow:0 1px 3px rgba(23,23,50,.06),0 8px 24px rgba(23,23,50,.06);
+  --shadow-lg:0 12px 48px rgba(23,23,50,.16);
+  --r:10px; --r-sm:7px;
+  --ui:'IBM Plex Sans',system-ui,sans-serif;
+  --display:'Sora',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --navy:#c7c3ff; --green:#2fe08e; --green-d:#26b874;
+  --ink:#ececf7; --ink2:#b9b9d0; --ink3:#8a8aa6;
+  --ground:#0f0f1c; --panel:#1a1a2e; --panel2:#20203a;
+  --line:#2c2c48; --line2:#3a3a5c;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 48px rgba(0,0,0,.55);
+}}
+:root[data-theme="dark"]{
+  --navy:#c7c3ff; --green:#2fe08e; --green-d:#26b874;
+  --ink:#ececf7; --ink2:#b9b9d0; --ink3:#8a8aa6;
+  --ground:#0f0f1c; --panel:#1a1a2e; --panel2:#20203a;
+  --line:#2c2c48; --line2:#3a3a5c;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 48px rgba(0,0,0,.55);
+}
+html,body{height:100%}
+body{font-family:var(--ui);background:var(--ground);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit;color:var(--ink)}
+input,textarea,select{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r-sm);padding:7px 9px;width:100%;transition:border-color .12s,box-shadow .12s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(31,202,126,.15)}
+textarea{resize:vertical;line-height:1.45}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px;border:2px solid var(--ground)}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- App shell ---------- */
+.app{display:flex;flex-direction:column;height:100%}
+.topbar{display:flex;align-items:center;gap:14px;padding:0 18px;height:60px;background:var(--panel);border-bottom:1px solid var(--line);flex-shrink:0;z-index:40}
+.brand{display:flex;align-items:center;gap:11px;flex-shrink:0}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--navy),var(--purple));display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.brand-mark::after{content:"";position:absolute;right:6px;bottom:6px;width:9px;height:9px;border-radius:50%;background:var(--green)}
+.brand-name{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:-.01em;line-height:1.1}
+.brand-sub{font-size:10.5px;color:var(--ink3);letter-spacing:.02em}
+.deck-select{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:3px;gap:2px}
+.deck-select button{padding:6px 14px;border-radius:99px;font-size:12.5px;font-weight:500;color:var(--ink3);white-space:nowrap}
+.deck-select button.on{background:var(--navy);color:#fff;box-shadow:var(--shadow)}
+:root[data-theme="dark"] .deck-select button.on,:root:not([data-theme="light"]) .deck-select button.on{color:#12122a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .deck-select button.on{color:#12122a}}
+.spacer{flex:1}
+.tbtn{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;color:var(--ink2);background:var(--panel2);border:1px solid var(--line);transition:.12s;white-space:nowrap}
+.tbtn:hover{border-color:var(--line2);background:var(--panel)}
+.tbtn svg{width:15px;height:15px}
+.tbtn.primary{background:var(--green);color:#06381f;border-color:transparent;font-weight:600}
+.tbtn.primary:hover{background:var(--green-d);color:#fff}
+.icon-btn{width:34px;height:34px;border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;color:var(--ink2);border:1px solid var(--line);background:var(--panel2)}
+.icon-btn:hover{background:var(--panel);border-color:var(--line2)}
+.icon-btn svg{width:16px;height:16px}
+
+.body{display:flex;flex:1;min-height:0}
+
+/* ---------- Sidebar ---------- */
+.sidebar{width:290px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side-head{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.side-title{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)}
+.side-count{font-family:var(--mono);font-size:11px;color:var(--ink3);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+.slide-list{flex:1;overflow-y:auto;padding:8px}
+.slide-item{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:var(--r-sm);margin-bottom:3px;cursor:pointer;border:1px solid transparent;transition:.1s;position:relative}
+.slide-item:hover{background:var(--panel2)}
+.slide-item.sel{background:rgba(31,202,126,.10);border-color:rgba(31,202,126,.4)}
+.slide-item.dragging{opacity:.4}
+.slide-item.drop-above::before,.slide-item.drop-below::after{content:"";position:absolute;left:8px;right:8px;height:2px;background:var(--green);border-radius:2px}
+.slide-item.drop-above::before{top:-2px}
+.slide-item.drop-below::after{bottom:-2px}
+.si-num{font-family:var(--mono);font-size:10.5px;color:var(--ink3);width:20px;flex-shrink:0;text-align:right}
+.si-body{flex:1;min-width:0}
+.si-name{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.si-type{font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.04em}
+.si-toggle{flex-shrink:0;width:30px;height:18px;border-radius:99px;background:var(--line2);position:relative;transition:.15s}
+.si-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.si-toggle.on{background:var(--green)}
+.si-toggle.on::after{left:14px}
+.slide-item.off{opacity:.5}
+.slide-item.off .si-name{text-decoration:line-through;text-decoration-color:var(--ink3)}
+.drag-handle{color:var(--ink3);cursor:grab;flex-shrink:0;display:flex;opacity:.5}
+.drag-handle:active{cursor:grabbing}
+.drag-handle svg{width:13px;height:13px}
+.add-slide{padding:10px 12px;border-top:1px solid var(--line);position:relative}
+.add-slide-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border:1.5px dashed var(--line2);border-radius:var(--r-sm);color:var(--ink2);font-weight:500;font-size:12.5px;transition:.12s}
+.add-slide-btn:hover{border-color:var(--green);color:var(--green-d);background:rgba(31,202,126,.06)}
+.add-slide-btn svg{width:16px;height:16px;flex-shrink:0}
+.add-menu{position:absolute;bottom:calc(100% - 2px);left:12px;right:12px;background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);box-shadow:var(--shadow-lg);padding:6px;max-height:340px;overflow-y:auto;z-index:60}
+.add-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border-radius:var(--r-sm);text-align:left;font-size:12.5px;color:var(--ink2)}
+.add-menu button:hover{background:var(--panel2);color:var(--ink)}
+.add-menu .am-ic{width:24px;height:24px;border-radius:6px;background:var(--panel2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.add-menu .am-ic svg{width:14px;height:14px;color:var(--navy)}
+.add-menu .am-desc{font-size:10.5px;color:var(--ink3)}
+
+/* ---------- Main / editor ---------- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--ground)}
+.preview-wrap{padding:20px 24px;background:var(--ground);border-bottom:1px solid var(--line);overflow:auto;flex-shrink:0}
+.stage-outer{max-width:900px;margin:0 auto}
+.stage-scaler{position:relative;width:100%;box-shadow:var(--shadow-lg);border-radius:6px;overflow:hidden;background:#fff}
+.stage{position:absolute;top:0;left:0;width:1280px;height:720px;transform-origin:top left;background:#fff;overflow:hidden;font-family:var(--ui)}
+.stage *{box-sizing:border-box}
+.preview-bar{max-width:900px;margin:0 auto 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.preview-bar .pb-title{font-size:12px;color:var(--ink3)}
+.preview-bar .pb-title b{color:var(--ink);font-weight:600}
+.mini-actions{display:flex;gap:6px}
+.mini-actions button{font-size:11.5px;padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);color:var(--ink2)}
+.mini-actions button:hover{border-color:var(--line2)}
+.mini-actions button.danger:hover{color:var(--orange);border-color:var(--orange)}
+
+.editor{flex:1;overflow-y:auto;padding:20px 24px 60px}
+.editor-inner{max-width:900px;margin:0 auto}
+.ed-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.ed-badge{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);background:rgba(27,20,100,.08);padding:4px 10px;border-radius:99px}
+:root[data-theme="dark"] .ed-badge,:root:not([data-theme="light"]) .ed-badge{background:rgba(199,195,255,.12)}
+.ed-head h2{font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:-.01em}
+.field{margin-bottom:15px}
+.field>label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+.field .hint{font-weight:400;color:var(--ink3);font-size:11px;margin-left:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card-block{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+
+/* list editors */
+.list-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
+.list-row .idx{font-family:var(--mono);font-size:11px;color:var(--ink3);padding-top:9px;width:18px;flex-shrink:0;text-align:right}
+.list-row .li-del{flex-shrink:0}
+.mini-del{width:32px;height:34px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--ink3);border:1px solid var(--line)}
+.mini-del:hover{color:var(--orange);border-color:var(--orange);background:rgba(234,96,42,.06)}
+.mini-del svg{width:14px;height:14px}
+.add-row{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--green-d);padding:6px 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);margin-top:2px}
+.add-row:hover{border-color:var(--green);background:rgba(31,202,126,.06)}
+.add-row svg{width:13px;height:13px}
+.obj-card{border:1px solid var(--line);border-radius:var(--r-sm);padding:11px;margin-bottom:9px;background:var(--panel2);position:relative}
+.obj-card .oc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.obj-card .oc-title{font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+
+/* table grid editor */
+.tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel)}
+table.grid{border-collapse:collapse;width:100%;min-width:420px}
+table.grid th,table.grid td{border:1px solid var(--line);padding:0;position:relative}
+table.grid th{background:var(--panel2)}
+table.grid input{border:none;border-radius:0;background:transparent;padding:7px 8px;min-width:90px}
+table.grid input:focus{box-shadow:inset 0 0 0 2px var(--green)}
+table.grid th input{font-weight:600}
+.gcorner{width:30px}
+.rowdel,.coldel{color:var(--ink3);width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px}
+.rowdel:hover,.coldel:hover{color:var(--orange);background:rgba(234,96,42,.08)}
+.rowdel svg,.coldel svg{width:13px;height:13px}
+.tbl-tools{display:flex;gap:8px;margin-top:9px}
+
+/* chart editor */
+.chart-types{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
+.ct-opt{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--line2);border-radius:99px;font-size:12px;color:var(--ink2);background:var(--panel)}
+.ct-opt.on{border-color:var(--green);background:rgba(31,202,126,.1);color:var(--green-d);font-weight:600}
+.ct-opt svg{width:14px;height:14px}
+.series-val-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.svg-cell{display:flex;flex-direction:column;gap:2px}
+.svg-cell span{font-size:9.5px;color:var(--ink3);text-align:center;max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svg-cell input{width:66px;text-align:center;padding:6px 4px;font-family:var(--mono);font-size:11.5px}
+.color-dot{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+
+/* toast */
+.toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;animation:tin .25s ease}
+.toast.ok{background:var(--green-d);color:#fff}
+.toast.err{background:var(--orange);color:#fff}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}}
+
+/* empty */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink3);gap:10px;text-align:center;padding:40px}
+.empty svg{width:44px;height:44px;opacity:.5}
+
+.mobile-note{display:none}
+@media (max-width:860px){
+  .body{flex-direction:column;overflow:auto}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:38vh}
+  .main{overflow:visible}
+  .brand-sub{display:none}
+  .deck-select{display:none}
+  .grid2{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .tbtn span.lbl{display:none}
+  .tbtn{padding:8px}
+  body{overflow:auto}
+  .app{height:auto;min-height:100%}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast-wrap" id="toasts"></div>
+<script>
+"use strict";
+/* ============================================================
+   Review Deck Builder  —  Monthly Service Review & QBR generator
+   Standalone tool. Fill fields, toggle/add/reorder slides,
+   export a native .pptx (PptxGenJS) or save/load your work as JSON.
+   ============================================================ */
+
+/* ---------- brand palette (slides always render on white) ---------- */
+const C = { navy:'1B1464', green:'1FCA7E', greenD:'159C60', purple:'5654AF', teal:'34D3D8',
+  orange:'EA602A', magenta:'B51596', lime:'CBDD00', ink:'1E1E32', ink2:'53536B', ink3:'8A8AA0',
+  line:'E2E4EE', panel:'F4F5FA', white:'FFFFFF', ok:'1FCA7E', warn:'EA602A' };
+const PALETTE = ['1FCA7E','5654AF','34D3D8','EA602A','B51596','CBDD00','1B1464','8A8AA0'];
+const hx = s => '#'+s;
+
+/* ---------- tiny helpers ---------- */
+const uid = () => 'x'+Math.random().toString(36).slice(2,9);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function h(tag, attrs, kids){
+  const e=document.createElement(tag);
+  if(attrs) for(const k in attrs){
+    if(k==='class') e.className=attrs[k];
+    else if(k==='html') e.innerHTML=attrs[k];
+    else if(k.startsWith('on')&&typeof attrs[k]==='function') e.addEventListener(k.slice(2),attrs[k]);
+    else if(k==='style'&&typeof attrs[k]==='object') Object.assign(e.style,attrs[k]);
+    else if(attrs[k]!=null&&attrs[k]!==false) e.setAttribute(k,attrs[k]);
+  }
+  if(kids!=null){ (Array.isArray(kids)?kids:[kids]).forEach(k=>{ if(k==null) return; e.appendChild(typeof k==='string'?document.createTextNode(k):k); }); }
+  return e;
+}
+function toast(msg, kind){
+  const t=h('div',{class:'toast '+(kind||'')},msg);
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300);}, kind==='err'?4200:2200);
+}
+const IC = {
+  slides:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+  cover:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 10h10M7 14h6"/></svg>',
+  agenda:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  divider:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg>',
+  bullets:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  kpi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="16" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/></svg>',
+  table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 4v16"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  closing:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 12l3 3 5-6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>',
+  drag:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v13M6 11l6 6 6-6M4 21h16"/></svg>',
+  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7M8 21v-7h8v7"/></svg>',
+  open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10H3z"/></svg>',
+  theme:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>',
+  reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>'
+};
+
+/* ---------- preview geometry (13.333 x 7.5 in @96dpi = 1280x720) ---------- */
+const IN=96, SW=1280, SH=720;
+const px = v => (v*IN);
+const fp = pt => (pt*96/72);  // pt -> css px
+function pbox(x,y,w,ht,style){ return `position:absolute;left:${px(x)}px;top:${px(y)}px;width:${px(w)}px;height:${px(ht)}px;${style||''}`; }
+
+/* ============================================================
+   SLIDE TYPE REGISTRY
+   Each type: {name, icon, group, desc, make(), fields(d), preview(d,ctx), pptx(p,s,d,ctx)}
+   ============================================================ */
+const T = {};
+
+/* ---- shared preview + pptx helpers ---- */
+function previewFooter(d, ctx){
+  const foot = (ctx.footer||'');
+  return `<div style="${pbox(0.55,7.05,8,0.35,'font-size:'+fp(8)+'px;color:#'+C.ink3)}">${esc(foot)}</div>`
+    + `<div style="${pbox(12.3,7.05,0.6,0.35,'font-size:'+fp(9)+'px;color:#'+C.ink3+';text-align:right')}">${ctx.num}</div>`;
+}
+function pptxFooter(s, d, ctx){
+  if(ctx.footer) s.addText(ctx.footer,{x:0.55,y:7.02,w:8,h:0.32,fontSize:8,color:C.ink3,fontFace:'Arial'});
+  s.addText(String(ctx.num),{x:12.2,y:7.02,w:0.6,h:0.32,fontSize:9,color:C.ink3,align:'right',fontFace:'Arial'});
+}
+function titleBlock(d, ctx){
+  return `<div style="${pbox(0.55,0.5,10.5,0.9,'font-family:Sora,sans-serif;font-weight:600;font-size:'+fp(26)+'px;color:#'+C.navy+';letter-spacing:-.01em;display:flex;align-items:flex-end')}">${esc(d.title||'')}</div>`
+    + `<div style="${pbox(0.57,1.42,2.2,0.06,'background:#'+C.green)}"></div>`;
+}
+function pptxTitle(s, d){
+  s.addText(d.title||'',{x:0.55,y:0.42,w:11.8,h:0.8,fontSize:26,bold:true,color:C.navy,fontFace:'Arial',valign:'bottom'});
+  s.addShape('rect',{x:0.57,y:1.42,w:2.2,h:0.06,fill:{color:C.green},line:{type:'none'}});
+}
+
+/* ================= COVER ================= */
+T.cover = {
+  name:'Title / Cover', icon:IC.cover, group:'Open', desc:'Deck title, date & presenters',
+  make:()=>({ title:'Monthly Service Review', client:'Client Name', sub:'August 2026',
+    date:'17th September 2026', presenters:[{name:'Thierry Amiot',role:'Customer Success Manager'}] }),
+  fields:d=>[
+    {key:'client',label:'Client / account name',type:'text',placeholder:'e.g. NewDay'},
+    {key:'title',label:'Deck title',type:'text',placeholder:'Monthly Service Review'},
+    {key:'sub',label:'Sub-line / period',type:'text',placeholder:'August 2026'},
+    {key:'date',label:'Presentation date',type:'text',placeholder:'17th September 2026'},
+    {key:'presenters',label:'Presenters',type:'objlist',addLabel:'Add presenter',
+      sub:[{key:'name',label:'Name',placeholder:'Full name'},{key:'role',label:'Role',placeholder:'Role / title'}]}
+  ],
+  preview:(d,ctx)=>{
+    const pres = (d.presenters||[]).map(p=>`<b style="color:#fff">${esc(p.name)}</b>${p.role?'<span style="color:#'+C.teal+'">&nbsp;·&nbsp;'+esc(p.role)+'</span>':''}`).join('<span style="color:#5b57a8">&nbsp;&nbsp;|&nbsp;&nbsp;</span>');
+    return `<div style="${pbox(0,0,13.333,7.5,'background:linear-gradient(120deg,#1B1464 0%,#2a2183 55%,#3f2e9e 100%)')}"></div>`
+      +`<div style="${pbox(0,0,13.333,7.5,'background:radial-gradient(circle at 82% 18%, rgba(31,202,126,.28), transparent 42%)')}"></div>`
+      +`<div style="${pbox(0.85,1.2,0.9,0.09,'background:#'+C.green)}"></div>`
+      +`<div style="${pbox(0.85,1.5,10,0.5,'font-size:'+fp(15)+'px;letter-spacing:.16em;text-transform:uppercase;color:#'+C.teal+';font-weight:600')}">${esc(d.client||'')}</div>`
+      +`<div style="${pbox(0.85,2.35,11.4,1.9,'font-family:Sora,sans-serif;font-weight:700;font-size:'+fp(50)+'px;line-height:1.03;color:#fff;letter-spacing:-.02em')}">${esc(d.title||'')}</div>`
+      +`<div style="${pbox(0.85,4.5,10,0.6,'font-size:'+fp(22)+'px;color:#cfd0ff;font-weight:500')}">${esc(d.sub||'')}</div>`
+      +`<div style="${pbox(0.85,6.35,11.6,0.4,'font-size:'+fp(13)+'px;color:#e9e9ff')}">${pres}</div>`
+      +`<div style="${pbox(0.87,5.95,10,0.35,'font-size:'+fp(12)+'px;letter-spacing:.05em;color:#9a97e0;text-transform:uppercase')}">${esc(d.date||'')}</div>`;
+  },
+  pptx:(p,s,d)=>{
+    s.background={color:C.navy};
+    s.addShape('rect',{x:0,y:0,w:13.333,h:7.5,fill:{color:'2A2183'},line:{type:'none'}});
+    s.addShape('rect',{x:8.6,y:0,w:4.8,h:7.5,fill:{color:'3F2E9E'},line:{type:'none'}});
+    s.addShape('rect',{x:0.85,y:1.2,w:0.9,h:0.09,fill:{color:C.green},line:{type:'none'}});
+    s.addText((d.client||'').toUpperCase(),{x:0.85,y:1.45,w:11,h:0.5,fontSize:15,bold:true,color:C.teal,charSpacing:3,fontFace:'Arial'});
+    s.addText(d.title||'',{x:0.82,y:2.3,w:11.6,h:2,fontSize:50,bold:true,color:'FFFFFF',fontFace:'Arial',valign:'top',lineSpacingMultiple:1.0});
+    s.addText(d.sub||'',{x:0.85,y:4.5,w:10,h:0.6,fontSize:22,color:'CFD0FF',fontFace:'Arial'});
+    s.addText((d.date||'').toUpperCase(),{x:0.85,y:5.95,w:10,h:0.35,fontSize:12,color:'9A97E0',charSpacing:1,fontFace:'Arial'});
+    const runs=[]; (d.presenters||[]).forEach((pr,i)=>{ if(i) runs.push({text:'   |   ',options:{color:'5B57A8'}});
+      runs.push({text:pr.name,options:{bold:true,color:'FFFFFF'}}); if(pr.role) runs.push({text:'  ·  '+pr.role,options:{color:C.teal}}); });
+    if(runs.length) s.addText(runs,{x:0.85,y:6.35,w:11.6,h:0.4,fontSize:13,fontFace:'Arial'});
+  }
+};
+
+/* ================= AGENDA ================= */
+T.agenda = {
+  name:'Agenda', icon:IC.agenda, group:'Open', desc:'Numbered list of topics',
+  make:()=>({ title:'Agenda', items:['SLA','DDoS','Support Cases','Volumes','Maintenance & Business Enhancements'] }),
+  fields:d=>[
+    {key:'title',label:'Title',type:'text'},
+    {key:'items',label:'Agenda items',type:'strlist',addLabel:'Add item',placeholder:'Topic'}
+  ],
+  preview:(d,ctx)=>{
+    let out = titleBlock(d,ctx);
+    const items=d.items||[]; const mid=Math.ceil(items.length/2); const twoCol=items.length>6;
+    const col=(arr,off,x)=>arr.map((it,i)=>{
+      const n=off+i+1; const y=2.1+i*0.82;
+      return `<div style="${pbox(x,y,0.6,0.6,'font-family:Sora;font-weight:700;font-size:'+fp(22)+'px;color:#'+C.green)}">${String(n).padStart(2,'0')}</div>`
+        +`<div style="${pbox(x+0.75,y+0.03,twoCol?4.6:9,0.7,'font-size:'+fp(19)+'px;color:#'+C.ink+';font-weight:500;display:flex;align-items:center')}">${esc(it)}</div>`;
+    }).join('');
+    if(twoCol) out+=col(items.slice(0,mid),0,0.7)+col(items.slice(mid),mid,6.9);
+    else out+=col(items,0,0.7);
+    return out+previewFooter(d,ctx);
+  },
+  pptx:(p,s,d,ctx)=>{
+    pptxTitle(s,d); const items=d.items||[]; const twoCol=items.length>6; const mid=Math.ceil(items.length/2);
+    const put=(arr,off,x)=>arr.forEach((it,i)=>{ const y=2.05+i*0.82;
+      s.addText(String(off+i+1).padStart(2,'0'),{x,y,w:0.6,h:0.6,fontSize:22,bold:true,color:C.green,fontFace:'Arial'});
+      s.addText(it,{x:x+0.7,y:y,w:twoCol?4.6:9,h:0.6,fontSize:19,color:C.ink,bold:true,valign:'middle',fontFace:'Arial'});
+    });
+    if(twoCol){put(items.slice(0,mid),0,0.7);put(items.slice(mid),mid,6.9);} else put(items,0,0.7);
+    pptxFooter(s,d,ctx);
+  }
+};
+
+/* ================= DIVIDER ================= */
+T.divider = {
+  name:'Section Divider', icon:IC.divider, group:'Structure', desc:'Full-bleed section break',
+  make:()=>({ title:'SLA', kicker:'' }),
+  fields:d=>[
+    {key:'kicker',label:'Kicker (optional)',type:'text',placeholder:'e.g. Section 1'},
+    {key:'title',label:'Section title',type:'text'}
+  ],
+  preview:(d,ctx)=>{
+    return `<div style="${pbox(0,0,13.333,7.5,'background:linear-gradient(120deg,#159c60,#1FCA7E 70%)')}"></div>`
+      +`<div style="${pbox(0,0,13.333,7.5,'background:radial-gradient(circle at 85% 80%, rgba(27,20,100,.35), transparent 45%)')}"></div>`
+      +`<div style="${pbox(0.9,2.7,0.9,0.09,'background:#fff')}"></div>`
+      +(d.kicker?`<div style="${pbox(0.92,2.95,10,0.5,'font-size:'+fp(15)+'px;letter-spacing:.14em;text-transform:uppercase;color:#eafff4;font-weight:600')}">${esc(d.kicker)}</div>`:'')
+      +`<div style="${pbox(0.9,3.4,11.5,1.8,'font-family:Sora;font-weight:700;font-size:'+fp(46)+'px;color:#fff;letter-spacing:-.02em')}">${esc(d.title||'')}</div>`
+      +`<div style="${pbox(12.3,7.05,0.6,0.35,'font-size:'+fp(9)+'px;color:#eafff4;text-align:right')}">${ctx.num}</div>`;
+  },
+  pptx:(p,s,d,ctx)=>{
+    s.background={color:C.green};
+    s.addShape('rect',{x:0,y:0,w:13.333,h:7.5,fill:{color:C.green},line:{type:'none'}});
+    s.addShape('rect',{x:0.9,y:2.7,w:0.9,h:0.09,fill:{color:'FFFFFF'},line:{type:'none'}});
+    if(d.kicker) s.addText(d.kicker.toUpperCase(),{x:0.9,y:2.9,w:10,h:0.5,fontSize:15,bold:true,color:'EAFFF4',charSpacing:3,fontFace:'Arial'});
+    s.addText(d.title||'',{x:0.88,y:3.35,w:11.6,h:1.8,fontSize:46,bold:true,color:'FFFFFF',fontFace:'Arial',valign:'top'});
+    s.addText(String(ctx.num),{x:12.2,y:7.02,w:0.6,h:0.32,fontSize:9,color:'EAFFF4',align:'right',fontFace:'Arial'});
+  }
+};
+
+/* ================= BULLETS ================= */
+T.bullets = {
+  name:'Bulleted Content', icon:IC.bullets, group:'Content', desc:'Title, lead line & bullet points',
+  make:()=>({ title:'Maintenance & Business Enhancements', lead:'', bullets:[
+    'August DR drill completed successfully on 9 August 2026.',
+    'Services restored with no customer action outstanding.',
+    'No planned maintenance affecting availability this period.'] }),
+  fields:d=>[
+    {key:'title',label:'Title',type:'text'},
+    {key:'lead',label:'Lead sentence (optional)',type:'area',rows:2,placeholder:'Framing sentence shown above the bullets'},
+    {key:'bullets',label:'Bullet points',type:'strlist',addLabel:'Add bullet',placeholder:'Point',area:true}
+  ],
+  preview:(d,ctx)=>{
+    let out=titleBlock(d,ctx); let y=2.0;
+    if(d.lead){ out+=`<div style="${pbox(0.7,1.75,11.6,0.7,'font-size:'+fp(16)+'px;color:#'+C.ink2+';font-style:italic')}">${esc(d.lead)}</div>`; y=2.55; }
+    (d.bullets||[]).forEach(b=>{
+      out+=`<div style="${pbox(0.75,y+0.06,0.35,0.35,'')}"><div style="width:9px;height:9px;border-radius:3px;background:#'+C.green+';margin-top:9px"></div></div>`
+        +`<div style="${pbox(1.15,y,11.2,0.9,'font-size:'+fp(17)+'px;color:#'+C.ink+';line-height:1.3')}">${esc(b)}</div>`;
+      y+=Math.max(0.62, 0.42+Math.ceil((b||'').length/78)*0.34);
+    });
+    return out+previewFooter(d,ctx);
+  },
+  pptx:(p,s,d,ctx)=>{
+    pptxTitle(s,d); let y=1.95;
+    if(d.lead){ s.addText(d.lead,{x:0.7,y:1.7,w:11.8,h:0.6,fontSize:16,italic:true,color:C.ink2,fontFace:'Arial'}); y=2.5; }
+    const items=(d.bullets||[]).map(b=>({text:b,options:{bullet:{code:'25AA',indent:18},color:C.ink,fontSize:17,paraSpaceAfter:10}}));
+    if(items.length) s.addText(items,{x:0.75,y:y,w:11.8,h:7.5-y-0.5,fontSize:17,color:C.ink,fontFace:'Arial',valign:'top'});
+    pptxFooter(s,d,ctx);
+  }
+};
+
+/* ================= KPI CARDS ================= */
+T.kpi = {
+  name:'KPI / Stat Cards', icon:IC.kpi, group:'Content', desc:'Headline + up to 4 metric cards + insights',
+  make:()=>({ title:'DDoS Incident Trends – August 2026',
+    headline:'August recorded no reportable DDoS attacks and no service impact. Security telemetry remained active without translating into an incident.',
+    cards:[ {label:'Incidents',value:'0',unit:'EVENTS',note:'No attack recorded'},
+      {label:'Attack volume',value:'0',unit:'GB',note:'No reportable attack'},
+      {label:'Net impact',value:'0',unit:'MIN',note:'No service impact'} ],
+    insights:[ {title:'No incident',text:'The monthly incident log recorded “No Attack” for August.'},
+      {title:'Resilience',text:'No service impact or net impact time was reported.'},
+      {title:'Controls active',text:'UDP and TCP block rules led observed security telemetry.'} ] }),
+  fields:d=>[
+    {key:'title',label:'Title',type:'text'},
+    {key:'headline',label:'Headline summary',type:'area',rows:3},
+    {key:'cards',label:'Metric cards',type:'objlist',addLabel:'Add card',
+      sub:[{key:'label',label:'Label',placeholder:'Incidents'},{key:'value',label:'Value',placeholder:'0'},
+        {key:'unit',label:'Unit',placeholder:'EVENTS'},{key:'note',label:'Note',placeholder:'context'}]},
+    {key:'insights',label:'“What this means” points',type:'objlist',addLabel:'Add insight',
+      sub:[{key:'title',label:'Heading',placeholder:'No incident'},{key:'text',label:'Text',type:'area',placeholder:'detail'}]}
+  ],
+  preview:(d,ctx)=>{
+    let out=titleBlock(d,ctx);
+    out+=`<div style="${pbox(0.7,1.7,11.9,0.95,'font-size:'+fp(15)+'px;color:#'+C.ink2+';line-height:1.35')}">${esc(d.headline||'')}</div>`;
+    const cards=(d.cards||[]).slice(0,4); const n=cards.length||1; const gap=0.25; const cw=(11.9-(n-1)*gap)/n;
+    cards.forEach((c,i)=>{ const x=0.7+i*(cw+gap); const y=2.85;
+      out+=`<div style="${pbox(x,y,cw,1.7,'background:#'+C.panel+';border:1px solid #'+C.line+';border-radius:12px;border-top:4px solid #'+PALETTE[i%PALETTE.length])}"></div>`
+        +`<div style="${pbox(x+0.28,y+0.24,cw-0.5,0.4,'font-size:'+fp(12)+'px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#'+C.ink3)}">${esc(c.label)}</div>`
+        +`<div style="${pbox(x+0.26,y+0.55,cw-0.5,0.7,'font-family:Sora;font-weight:700;font-size:'+fp(38)+'px;color:#'+C.navy)}">${esc(c.value)}<span style="font-size:'+fp(14)+'px;color:#'+C.ink3+';font-weight:600;margin-left:5px">${esc(c.unit)}</span></div>`
+        +`<div style="${pbox(x+0.28,y+1.28,cw-0.5,0.4,'font-size:'+fp(11)+'px;color:#'+C.ink2)}">${esc(c.note)}</div>`;
+    });
+    const ins=(d.insights||[]).slice(0,4); const m=ins.length||1; const iw=(11.9-(m-1)*gap)/m;
+    ins.forEach((c,i)=>{ const x=0.7+i*(iw+gap); const y=4.9;
+      out+=`<div style="${pbox(x,y,0.5,0.5,'')}"><div style="width:12px;height:12px;border-radius:4px;background:#'+C.green+';margin-top:6px"></div></div>`
+        +`<div style="${pbox(x+0.42,y,iw-0.42,0.4,'font-family:Sora;font-weight:600;font-size:'+fp(15)+'px;color:#'+C.navy)}">${esc(c.title)}</div>`
+        +`<div style="${pbox(x+0.42,y+0.42,iw-0.42,1.2,'font-size:'+fp(12)+'px;color:#'+C.ink2+';line-height:1.35')}">${esc(c.text)}</div>`;
+    });
+    return out+previewFooter(d,ctx);
+  },
+  pptx:(p,s,d,ctx)=>{
+    pptxTitle(s,d);
+    s.addText(d.headline||'',{x:0.7,y:1.65,w:11.9,h:1,fontSize:15,color:C.ink2,fontFace:'Arial',valign:'top'});
+    const cards=(d.cards||[]).slice(0,4); const n=cards.length||1; const gap=0.25; const cw=(11.9-(n-1)*gap)/n;
+    cards.forEach((c,i)=>{ const x=0.7+i*(cw+gap); const y=2.85;
+      s.addShape('roundRect',{x,y,w:cw,h:1.7,rectRadius:0.08,fill:{color:C.panel},line:{color:C.line,width:1}});
+      s.addShape('rect',{x,y,w:cw,h:0.06,fill:{color:PALETTE[i%PALETTE.length]},line:{type:'none'}});
+      s.addText((c.label||'').toUpperCase(),{x:x+0.25,y:y+0.2,w:cw-0.45,h:0.35,fontSize:12,bold:true,color:C.ink3,charSpacing:1,fontFace:'Arial'});
+      s.addText([{text:c.value||'',options:{fontSize:38,bold:true,color:C.navy}},{text:' '+(c.unit||''),options:{fontSize:14,bold:true,color:C.ink3}}],{x:x+0.24,y:y+0.5,w:cw-0.4,h:0.8,fontFace:'Arial',valign:'middle'});
+      s.addText(c.note||'',{x:x+0.25,y:y+1.28,w:cw-0.45,h:0.35,fontSize:11,color:C.ink2,fontFace:'Arial'});
+    });
+    const ins=(d.insights||[]).slice(0,4); const m=ins.length||1; const iw=(11.9-(m-1)*gap)/m;
+    ins.forEach((c,i)=>{ const x=0.7+i*(iw+gap); const y=4.9;
+      s.addShape('rect',{x:x,y:y+0.05,w:0.14,h:0.14,fill:{color:C.green},line:{type:'none'}});
+      s.addText(c.title||'',{x:x+0.32,y:y-0.06,w:iw-0.32,h:0.4,fontSize:15,bold:true,color:C.navy,fontFace:'Arial'});
+      s.addText(c.text||'',{x:x+0.32,y:y+0.36,w:iw-0.32,h:1.3,fontSize:12,color:C.ink2,fontFace:'Arial',valign:'top'});
+    });
+    pptxFooter(s,d,ctx);
+  }
+};
+
+/* ================= TABLE ================= */
+T.table = {
+  name:'Table', icon:IC.table, group:'Content', desc:'Editable grid — attendees, actions, SLA…',
+  make:()=>({ title:'Executive Summary', note:'', header:['Item','SLA – Contract','Actual'],
+    rows:[ ['Service Availability','99.7%','99.99%'], ['Response < 2s','95%','100%'], ['Case Response Times','By severity','100%'] ] }),
+  fields:d=>[
+    {key:'title',label:'Title',type:'text'},
+    {key:'note',label:'Note (optional)',type:'text',placeholder:'Small caption under the table'},
+    {key:'__grid',label:'Table data',type:'grid'}
+  ],
+  preview:(d,ctx)=>{
+    let out=titleBlock(d,ctx);
+    const head=d.header||[]; const rows=d.rows||[]; const cols=head.length||1;
+    const tblW=11.9, x0=0.7; let y=1.85;
+    const nrows=rows.length+1; const rh=Math.min(0.62, Math.max(0.34,(5.0)/Math.max(nrows,1)));
+    const cw=tblW/cols;
+    // header
+    out+=`<div style="${pbox(x0,y,tblW,rh,'background:#'+C.navy+';border-radius:7px 7px 0 0')}"></div>`;
+    head.forEach((hh,c)=>{ out+=`<div style="${pbox(x0+c*cw+0.14,y,cw-0.2,rh,'font-size:'+fp(11.5)+'px;font-weight:600;color:#fff;display:flex;align-items:center')}">${esc(hh)}</div>`; });
+    y+=rh;
+    rows.slice(0,10).forEach((r,ri)=>{
+      const bg=ri%2? C.white : C.panel;
+      out+=`<div style="${pbox(x0,y,tblW,rh,'background:#'+bg+';border-bottom:1px solid #'+C.line)}"></div>`;
+      for(let c=0;c<cols;c++){ out+=`<div style="${pbox(x0+c*cw+0.14,y,cw-0.2,rh,'font-size:'+fp(10.5)+'px;color:#'+C.ink+';display:flex;align-items:center;overflow:hidden')}">${esc(r[c]||'')}</div>`; }
+      y+=rh;
+    });
+    if(d.note) out+=`<div style="${pbox(x0,y+0.1,tblW,0.4,'font-size:'+fp(10)+'px;color:#'+C.ink3+';font-style:italic')}">${esc(d.note)}</div>`;
+    return out+previewFooter(d,ctx);
+  },
+  pptx:(p,s,d,ctx)=>{
+    pptxTitle(s,d);
+    const head=d.header||[]; const rows=d.rows||[]; const cols=head.length||1;
+    const body=[];
+    body.push(head.map(hh=>({text:hh||'',options:{fill:{color:C.navy},color:'FFFFFF',bold:true,fontSize:11,valign:'middle'}})));
+    rows.forEach((r,ri)=>{ const line=[]; for(let c=0;c<cols;c++) line.push({text:(r[c]!=null?String(r[c]):''),options:{fill:{color:ri%2?'FFFFFF':C.panel},color:C.ink,fontSize:10,valign:'middle'}}); body.push(line); });
+    s.addTable(body,{x:0.7,y:1.8,w:11.9,color:C.ink,fontFace:'Arial',border:{type:'solid',color:C.line,pt:0.5},
+      autoPage:false,rowH:0.3,align:'left',valign:'middle'});
+    if(d.note) s.addText(d.note,{x:0.7,y:6.55,w:11.9,h:0.35,fontSize:10,italic:true,color:C.ink3,fontFace:'Arial'});
+    pptxFooter(s,d,ctx);
+  }
+};
+
+/* ================= CHART ================= */
+const CHART_TYPES=[
+  {v:'column',n:'Column'},{v:'stacked',n:'Stacked'},{v:'bar',n:'Bar'},
+  {v:'line',n:'Line'},{v:'pie',n:'Pie'},{v:'doughnut',n:'Doughnut'}
+];
+T.chart = {
+  name:'Chart', icon:IC.chart, group:'Content', desc:'Column, bar, line, pie or doughnut',
+  make:()=>({ title:'Traffic Volume', chartType:'column', lead:'',
+    callout:'Overall increase in traffic volume of 2.4%',
+    categories:['Apr','May','Jun'],
+    series:[{name:'2025',values:[12.1,12.8,13.0]},{name:'2026',values:[12.5,13.1,13.6]}] }),
+  fields:d=>[
+    {key:'title',label:'Title',type:'text'},
+    {key:'lead',label:'Lead sentence (optional)',type:'area',rows:2},
+    {key:'__chart',label:'Chart',type:'chart'},
+    {key:'callout',label:'Callout box (optional)',type:'text',placeholder:'Highlighted takeaway'}
+  ],
+  preview:(d,ctx)=>{
+    let out=titleBlock(d,ctx); let cy=1.85, ch=5.0;
+    if(d.lead){ out+=`<div style="${pbox(0.7,1.7,11.9,0.6,'font-size:'+fp(14)+'px;color:#'+C.ink2+';font-style:italic')}">${esc(d.lead)}</div>`; cy=2.3; ch=4.5; }
+    const cW = d.callout? 8.9 : 11.9;
+    out+=`<div style="${pbox(0.7,cy,cW,ch,'')}">${chartSVG(d, px(cW), px(ch))}</div>`;
+    if(d.callout) out+=`<div style="${pbox(9.75,cy+0.4,2.85,2.2,'background:#'+C.navy+';border-radius:12px;padding:16px;color:#fff;font-family:Sora;font-weight:600;font-size:'+fp(15)+'px;line-height:1.3;display:flex;align-items:center')}">${esc(d.callout)}</div>`;
+    return out+previewFooter(d,ctx);
+  },
+  pptx:(p,s,d,ctx)=>{
+    pptxTitle(s,d); let cy=1.75, ch=5.0;
+    if(d.lead){ s.addText(d.lead,{x:0.7,y:1.65,w:11.9,h:0.5,fontSize:14,italic:true,color:C.ink2,fontFace:'Arial'}); cy=2.25; ch=4.5; }
+    const cats=d.categories||[]; const series=d.series||[];
+    const cW = d.callout? 8.9 : 11.9;
+    const chColors = series.map((_,i)=>PALETTE[i%PALETTE.length]);
+    const base={x:0.6,y:cy,w:cW,h:ch,chartColors:chColors,showLegend:series.length>1,legendPos:'b',
+      showValue:false,catAxisLabelColor:C.ink2,valAxisLabelColor:C.ink2,catAxisLabelFontSize:10,valAxisLabelFontSize:10,
+      catAxisLabelFontFace:'Arial',valAxisLabelFontFace:'Arial',legendFontFace:'Arial',legendFontSize:10,legendColor:C.ink2};
+    let ctype='bar', extra={};
+    if(d.chartType==='column'){ctype='bar';extra={barDir:'col'};}
+    else if(d.chartType==='stacked'){ctype='bar';extra={barDir:'col',barGrouping:'stacked'};}
+    else if(d.chartType==='bar'){ctype='bar';extra={barDir:'bar'};}
+    else if(d.chartType==='line'){ctype='line';extra={lineSize:3,lineSmooth:false};}
+    else if(d.chartType==='pie'){ctype='pie';extra={showLegend:true,legendPos:'r',showPercent:true};}
+    else if(d.chartType==='doughnut'){ctype='doughnut';extra={showLegend:true,legendPos:'r',showPercent:true,holeSize:60};}
+    let data;
+    if(d.chartType==='pie'||d.chartType==='doughnut'){
+      data=[{name:series[0]?series[0].name:'Series',labels:cats,values:(series[0]?series[0].values:[]).map(Number)}];
+      base.chartColors=cats.map((_,i)=>PALETTE[i%PALETTE.length]);
+    } else {
+      data=series.map(se=>({name:se.name,labels:cats,values:(se.values||[]).map(Number)}));
+    }
+    try{ s.addChart(ctype,data,Object.assign(base,extra)); }catch(e){ s.addText('[chart]',{x:0.7,y:cy,w:cW,h:ch}); }
+    if(d.callout){ s.addShape('roundRect',{x:9.75,y:cy+0.4,w:2.85,h:2.1,rectRadius:0.08,fill:{color:C.navy},line:{type:'none'}});
+      s.addText(d.callout,{x:9.95,y:cy+0.55,w:2.45,h:1.8,fontSize:15,bold:true,color:'FFFFFF',fontFace:'Arial',valign:'middle'}); }
+    pptxFooter(s,d,ctx);
+  }
+};
+
+/* ================= CLOSING ================= */
+T.closing = {
+  name:'Closing / Thank You', icon:IC.closing, group:'Structure', desc:'Sign-off slide',
+  make:()=>({ title:'Thank you!', sub:'Questions & discussion' }),
+  fields:d=>[ {key:'title',label:'Title',type:'text'}, {key:'sub',label:'Sub-line',type:'text'} ],
+  preview:(d,ctx)=>{
+    return `<div style="${pbox(0,0,13.333,7.5,'background:linear-gradient(120deg,#1B1464,#3f2e9e)')}"></div>`
+      +`<div style="${pbox(0,0,13.333,7.5,'background:radial-gradient(circle at 20% 85%, rgba(31,202,126,.3), transparent 40%)')}"></div>`
+      +`<div style="${pbox(0.9,3.0,11.5,1.4,'font-family:Sora;font-weight:700;font-size:'+fp(56)+'px;color:#fff;letter-spacing:-.02em')}">${esc(d.title||'')}</div>`
+      +`<div style="${pbox(0.92,4.5,10,0.6,'font-size:'+fp(20)+'px;color:#cfd0ff')}">${esc(d.sub||'')}</div>`
+      +`<div style="${pbox(0.92,2.55,2,0.09,'background:#'+C.green)}"></div>`;
+  },
+  pptx:(p,s,d)=>{
+    s.background={color:C.navy};
+    s.addShape('rect',{x:0,y:0,w:13.333,h:7.5,fill:{color:'2A2183'},line:{type:'none'}});
+    s.addShape('rect',{x:0.92,y:2.55,w:2,h:0.09,fill:{color:C.green},line:{type:'none'}});
+    s.addText(d.title||'',{x:0.88,y:2.95,w:11.6,h:1.4,fontSize:56,bold:true,color:'FFFFFF',fontFace:'Arial'});
+    s.addText(d.sub||'',{x:0.92,y:4.5,w:10,h:0.6,fontSize:20,color:'CFD0FF',fontFace:'Arial'});
+  }
+};
+
+/* ============================================================
+   Mini SVG chart renderer (preview only)
+   ============================================================ */
+function chartSVG(d, W, H){
+  const type=d.chartType, cats=d.categories||[], series=d.series||[];
+  const pad={l:46,r:14,t:14,b:series.length>1?42:28};
+  const iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
+  const col=i=>hx(PALETTE[i%PALETTE.length]);
+  const axisc=hx(C.ink3), gridc=hx(C.line), txtc=hx(C.ink2);
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block" font-family="IBM Plex Sans,sans-serif">`;
+
+  if(type==='pie'||type==='doughnut'){
+    const vals=(series[0]?series[0].values:[]).map(Number);
+    const total=vals.reduce((a,b)=>a+(b||0),0)||1;
+    const cx=pad.l+iw*0.42, cy=pad.t+ih/2, R=Math.min(iw*0.42,ih/2)-4, r0=type==='doughnut'?R*0.58:0;
+    let ang=-Math.PI/2;
+    vals.forEach((v,i)=>{ const a2=ang+(v/total)*Math.PI*2;
+      const x1=cx+R*Math.cos(ang),y1=cy+R*Math.sin(ang),x2=cx+R*Math.cos(a2),y2=cy+R*Math.sin(a2);
+      const large=(a2-ang)>Math.PI?1:0;
+      if(r0>0){ const xx1=cx+r0*Math.cos(ang),yy1=cy+r0*Math.sin(ang),xx2=cx+r0*Math.cos(a2),yy2=cy+r0*Math.sin(a2);
+        s+=`<path d="M${x1} ${y1} A${R} ${R} 0 ${large} 1 ${x2} ${y2} L${xx2} ${yy2} A${r0} ${r0} 0 ${large} 0 ${xx1} ${yy1} Z" fill="${col(i)}"/>`; }
+      else s+=`<path d="M${cx} ${cy} L${x1} ${y1} A${R} ${R} 0 ${large} 1 ${x2} ${y2} Z" fill="${col(i)}"/>`;
+      ang=a2;
+    });
+    // legend
+    const lx=pad.l+iw*0.82; let ly=pad.t+8;
+    cats.forEach((c,i)=>{ s+=`<rect x="${lx}" y="${ly}" width="11" height="11" rx="2" fill="${col(i)}"/><text x="${lx+16}" y="${ly+9}" font-size="11" fill="${txtc}">${esc(c)} ${Math.round((vals[i]||0)/total*100)}%</text>`; ly+=20; });
+    return s+'</svg>';
+  }
+
+  // numeric range
+  let maxV=0,minV=0;
+  if(type==='stacked'){ cats.forEach((_,ci)=>{ let sum=0; series.forEach(se=>sum+=Number(se.values[ci]||0)); if(sum>maxV)maxV=sum; }); }
+  else { series.forEach(se=>(se.values||[]).forEach(v=>{ v=Number(v); if(v>maxV)maxV=v; if(v<minV)minV=v; })); }
+  maxV=maxV||1; const rng=maxV-Math.min(0,minV)||1;
+  const yTo=v=> pad.t+ih-((v-Math.min(0,minV))/rng)*ih;
+  // gridlines + y labels
+  const ticks=4;
+  for(let t=0;t<=ticks;t++){ const val=Math.min(0,minV)+rng*t/ticks; const y=yTo(val);
+    s+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="${gridc}" stroke-width="1"/>`;
+    s+=`<text x="${pad.l-6}" y="${y+3}" font-size="9.5" text-anchor="end" fill="${axisc}">${fmtNum(val)}</text>`;
+  }
+
+  const isBar = type==='bar';
+  const n=cats.length||1;
+  if(isBar){
+    const band=ih/n, bh=Math.min(band*0.6, 34);
+    cats.forEach((c,ci)=>{ const y=pad.t+band*ci+(band-bh)/2;
+      const v=Number(series[0]?series[0].values[ci]:0)||0; const w=(v/maxV)*iw;
+      s+=`<rect x="${pad.l}" y="${y}" width="${Math.max(0,w)}" height="${bh}" rx="3" fill="${col(0)}"/>`;
+      s+=`<text x="${pad.l-6}" y="${y+bh/2+3}" font-size="9.5" text-anchor="end" fill="${axisc}">${esc(c)}</text>`;
+    });
+    return s+'</svg>';
+  }
+
+  const band=iw/n;
+  // x labels
+  cats.forEach((c,ci)=>{ const cx=pad.l+band*ci+band/2; s+=`<text x="${cx}" y="${H-pad.b+16}" font-size="10" text-anchor="middle" fill="${axisc}">${esc(c)}</text>`; });
+
+  if(type==='line'){
+    series.forEach((se,si)=>{ const pts=(se.values||[]).map((v,ci)=>[pad.l+band*ci+band/2, yTo(Number(v)||0)]);
+      s+=`<polyline fill="none" stroke="${col(si)}" stroke-width="3" stroke-linejoin="round" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
+      pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#fff" stroke="${col(si)}" stroke-width="2"/>`);
+    });
+  } else { // column / stacked
+    const ns=series.length||1;
+    cats.forEach((c,ci)=>{
+      if(type==='stacked'){ let acc=0; const bw=Math.min(band*0.55,64); const x=pad.l+band*ci+(band-bw)/2;
+        series.forEach((se,si)=>{ const v=Number(se.values[ci]||0); const yTop=yTo(acc+v), yBot=yTo(acc); acc+=v;
+          s+=`<rect x="${x}" y="${yTop}" width="${bw}" height="${Math.max(0,yBot-yTop)}" fill="${col(si)}"/>`; });
+      } else {
+        const gw=band*0.66; const bw=gw/ns; const x0=pad.l+band*ci+(band-gw)/2;
+        series.forEach((se,si)=>{ const v=Number(se.values[ci]||0); const y=yTo(v), y0=yTo(0);
+          s+=`<rect x="${x0+bw*si}" y="${Math.min(y,y0)}" width="${bw*0.86}" height="${Math.max(1,Math.abs(y0-y))}" rx="2" fill="${col(si)}"/>`; });
+      }
+    });
+  }
+  // legend
+  if(series.length>1){ let lx=pad.l; const ly=H-14;
+    series.forEach((se,si)=>{ s+=`<rect x="${lx}" y="${ly-9}" width="11" height="11" rx="2" fill="${col(si)}"/><text x="${lx+16}" y="${ly}" font-size="10.5" fill="${txtc}">${esc(se.name)}</text>`; lx+=Math.max(70, esc(se.name).length*7+34); });
+  }
+  return s+'</svg>';
+}
+function fmtNum(v){ v=Number(v); if(Math.abs(v)>=1000000) return (v/1000000).toFixed(1).replace(/\.0$/,'')+'M'; if(Math.abs(v)>=1000) return (v/1000).toFixed(1).replace(/\.0$/,'')+'k'; return (Math.round(v*100)/100).toString(); }
+
+/* ============================================================
+   TEMPLATES
+   ============================================================ */
+function slide(type, data){ return { id:uid(), type, enabled:true, data:Object.assign(T[type].make(), data||{}) }; }
+
+function monthlyTemplate(){
+  return {
+    deckType:'monthly',
+    footer:'© 2026 Outseer, LLC',
+    fileName:'Monthly_Service_Review',
+    slides:[
+      slide('cover',{client:'NewDay',title:'Monthly Service Review',sub:'August 2026',date:'17th September 2026',
+        presenters:[{name:'Thierry Amiot',role:'Customer Success Manager'}]}),
+      slide('agenda',{items:['SLA','DDoS','Support Cases','Volumes','Maintenance & Business Enhancements']}),
+      slide('divider',{title:'SLA',kicker:'Section 1'}),
+      slide('chart',{title:'System Availability',chartType:'stacked',lead:'Overall system availability against the 99.70% commitment.',
+        categories:['Jun','Jul','Aug'],series:[{name:'Available %',values:[99.98,99.99,100]},{name:'Maintenance %',values:[0.02,0.01,0]}],callout:'100% availability in August'}),
+      slide('divider',{title:'DDoS',kicker:'Section 2'}),
+      slide('kpi',{}),
+      slide('divider',{title:'Support Cases',kicker:'Section 3'}),
+      slide('chart',{title:'Technical Support Cases Review',chartType:'column',lead:'Cases received and average days to resolve.',
+        categories:['Jun','Jul','Aug'],series:[{name:'Cases raised',values:[4,3,2]},{name:'Avg days to resolve',values:[2.1,1.8,1.5]}],callout:''}),
+      slide('table',{title:'Technical Support Cases Review',note:'Open and recently closed cases',header:['Case Number','Subject','Status'],
+        rows:[['00107257','Challenge Failed','Closed'],['00107639','Outseer access','Open']]}),
+      slide('divider',{title:'Volumes',kicker:'Section 4'}),
+      slide('chart',{title:'Traffic Volume',chartType:'column',lead:'',categories:['Jun','Jul','Aug'],
+        series:[{name:'2025',values:[3.1,3.3,3.2]},{name:'2026',values:[3.4,3.5,3.6]}],callout:'Volume up 2.4% YoY'}),
+      slide('chart',{title:'Traffic Value',chartType:'column',lead:'',categories:['Jun','Jul','Aug'],
+        series:[{name:'£m',values:[41.2,43.8,45.9]}],callout:''}),
+      slide('table',{title:'Volume vs Contractual',note:'Against the 150M renewal commitment',header:['Vol. 2022','Vol. 2023','Vol. 2024','Since Renewal','% of 150M'],
+        rows:[['27,324,417','37,711,747','38,419,576','45,866,977','30.57%']]}),
+      slide('divider',{title:'Maintenance & Release',kicker:'Section 5'}),
+      slide('bullets',{}),
+      slide('closing',{title:'Thank you!',sub:'Questions & discussion'})
+    ]
+  };
+}
+
+function qbrTemplate(){
+  return {
+    deckType:'qbr',
+    footer:'Property of Outseer. All Rights Reserved.',
+    fileName:'Quarterly_Business_Review',
+    slides:[
+      slide('cover',{client:'easybank Germany / BAWAG',title:'Quarterly Business Review',sub:'Q2 · April, May & June 2026',date:'22nd July 2026',
+        presenters:[{name:'Jean Ransom',role:'Senior CSM'},{name:'Ali Gough',role:'Senior Fraud Advisor'},{name:'Oliver Ludlow',role:'Solutions Consultant'}]}),
+      slide('agenda',{items:['Attendees & Quorum','Review of Previous Actions','Solution Consultancy Update','Supplier Performance: SLA & KPI','DDoS','Technical Support Case Review','Fraud Advisory Summary','AOB']}),
+      slide('divider',{title:'Attendees & Quorum',kicker:'Section 1'}),
+      slide('table',{title:'Attendees',note:'',header:['Name','Company','Role'],
+        rows:[['Tony Campbell','Outseer','Account Director'],['Jean Ransom','Outseer','Senior CSM'],['Ali Gough','Outseer','Senior Fraud Advisor'],
+          ['Arndt Franzen','easybank / BAWAG','Group Head of Cards'],['Lawrence Duval','easybank / BAWAG','Group Head of Fraud']]}),
+      slide('divider',{title:'Actions',kicker:'Section 2'}),
+      slide('table',{title:'Actions Log',note:'Open and closed actions this quarter',header:['#','Action','Owner','Due','Status'],
+        rows:[['1','Trust Centre access','Jean','30/04/2026','Closed'],['5','App-to-App Redirect investigation','Juliane / BUK','25/07/2026','Open'],
+          ['9','Decommission forward planning','Jean','25/07/2026','Open'],['11','PGP Key Rotation','Jean / Axway','28/07/2026','Open']]}),
+      slide('divider',{title:'Supplier Performance & KPI Review',kicker:'Section 3'}),
+      slide('table',{title:'Executive Summary — Q2',note:'SLA performance vs contract',header:['Item','SLA – Contract','Apr','May','Jun'],
+        rows:[['Service Availability','99.7%','100%','99.97%','99.99%'],['Response < 2s','95%','100%','100%','100%'],
+          ['Case Response Times','By severity','100%','100%','100%'],['RCA Reporting','7 Days','N/A','N/A','N/A']]}),
+      slide('chart',{title:'System Availability Overall',chartType:'stacked',lead:'Availability with and without disruption recording.',
+        categories:['Apr','May','Jun'],series:[{name:'Available %',values:[100,99.97,99.99]},{name:'Maintenance %',values:[0,0.03,0.01]}],callout:'100% in June'}),
+      slide('divider',{title:'DDoS',kicker:'Section 4'}),
+      slide('chart',{title:'System Availability – DDoS',chartType:'column',lead:'Significant DDoS disruption events over the last 12 months.',
+        categories:['Q3 25','Q4 25','Q1 26','Q2 26'],series:[{name:'Events',values:[0,1,0,0]},{name:'Downtime (min)',values:[0,4,0,0]}],callout:''}),
+      slide('divider',{title:'Technical Support Case Review',kicker:'Section 5'}),
+      slide('chart',{title:'Technical Support Case Review',chartType:'bar',lead:'Cases by severity and average days to resolve.',
+        categories:['Sev 1','Sev 2','Sev 3','Sev 5'],series:[{name:'Cases',values:[1,0,4,3]}],callout:''}),
+      slide('divider',{title:'Fraud Advisory Summary',kicker:'Section 6'}),
+      slide('chart',{title:'Challenge Rate',chartType:'line',lead:'',categories:['Jan','Feb','Mar','Apr','May','Jun'],
+        series:[{name:'Challenge %',values:[40.5,41.2,42.8,43.5,44.0,45.7]}],callout:'Raised to combat Q4 allow losses'}),
+      slide('chart',{title:'Quarter 2 Losses Breakdown',chartType:'doughnut',lead:'Total losses € 445,827',
+        categories:['Authenticated','Allowed','Blocked','Previously Genuine'],series:[{name:'Split',values:[78.01,19.27,1.57,1.15]}],callout:''}),
+      slide('table',{title:'Peer Comparison',note:'easybank vs peer benchmark',header:['Metric','easybank','Peer','%Δ'],
+        rows:[['Est Fraud Rate','0.9%','13.0%','-1340%'],['Case Marking','7.8%','4.6%','+41%'],['G:F','1.90','0.33','+83%'],
+          ['Challenge Rate','45.7%','72.6%','-59%'],['Success Rate','90.4%','82.5%','+8.7%']]}),
+      slide('table',{title:'Year To Date Summary',note:'',header:['Metric','2025','2026'],
+        rows:[['Transactions Volume','6.5 M','6.7 M'],['Transactions Value','€1.5 B','€1.4 B'],['Challenge Rate','40.5%','44.0%'],
+          ['Success Rate','91.5%','90.8%'],['FDR','99.9%','96.4%'],['Basis Points','7.0','8.1']]}),
+      slide('divider',{title:'AOB',kicker:'Section 7'}),
+      slide('closing',{title:'Thank you!',sub:'Questions & discussion'})
+    ]
+  };
+}
+
+/* ============================================================
+   STATE + persistence
+   ============================================================ */
+const LS_KEY='reviewDeckBuilder.v1';
+let state = load() || monthlyTemplate();
+let sel = 0;
+let addMenuOpen=false;
+
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+function load(){ try{ const s=localStorage.getItem(LS_KEY); if(s){ const o=JSON.parse(s); if(o&&o.slides) return o; } }catch(e){} return null; }
+
+function newDeck(type){
+  if(state.slides.length && !confirm('Replace the current deck with a fresh '+(type==='qbr'?'QBR':'Monthly Review')+' template? Your current work will be lost unless you saved it.')) return;
+  state = type==='qbr'? qbrTemplate() : monthlyTemplate();
+  sel=0; save(); renderAll(); toast('New '+(type==='qbr'?'QBR':'Monthly')+' template loaded','ok');
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderAll(){ renderApp(); }
+
+function renderApp(){
+  const app=document.getElementById('app'); app.innerHTML='';
+  app.appendChild(topbar());
+  const body=h('div',{class:'body'});
+  body.appendChild(sidebar());
+  body.appendChild(mainPane());
+  app.appendChild(body);
+  requestAnimationFrame(scalePreview);
+}
+
+function topbar(){
+  const bar=h('div',{class:'topbar'});
+  bar.appendChild(h('div',{class:'brand'},[
+    h('div',{class:'brand-mark'}),
+    h('div',{},[ h('div',{class:'brand-name'},'Review Deck Builder'), h('div',{class:'brand-sub'},'Monthly & QBR · export to PowerPoint') ])
+  ]));
+  const ds=h('div',{class:'deck-select'});
+  [['monthly','Monthly Review'],['qbr','QBR']].forEach(([v,l])=>{
+    ds.appendChild(h('button',{class:state.deckType===v?'on':'',onclick:()=>newDeck(v)},l));
+  });
+  bar.appendChild(ds);
+  bar.appendChild(h('div',{class:'spacer'}));
+  bar.appendChild(h('button',{class:'icon-btn',title:'Toggle light / dark',onclick:toggleTheme,html:IC.theme}));
+  bar.appendChild(h('button',{class:'tbtn',title:'Save your work as a .json file',onclick:exportJSON,html:IC.save+'<span class="lbl">Save</span>'}));
+  bar.appendChild(h('button',{class:'tbtn',title:'Load a saved .json file',onclick:importJSON,html:IC.open+'<span class="lbl">Open</span>'}));
+  bar.appendChild(h('button',{class:'tbtn primary',onclick:exportPPTX,html:IC.down+'<span class="lbl">Download PPTX</span>'}));
+  return bar;
+}
+
+function sidebar(){
+  const sb=h('div',{class:'sidebar'});
+  const enabled=state.slides.filter(s=>s.enabled).length;
+  sb.appendChild(h('div',{class:'side-head'},[
+    h('div',{class:'side-title'},'Slides'),
+    h('div',{class:'side-count'}, enabled+' / '+state.slides.length)
+  ]));
+  const list=h('div',{class:'slide-list',id:'slideList'});
+  state.slides.forEach((s,i)=>list.appendChild(slideItem(s,i)));
+  sb.appendChild(list);
+  const add=h('div',{class:'add-slide'});
+  add.appendChild(h('button',{class:'add-slide-btn',onclick:e=>{e.stopPropagation();toggleAddMenu(add);},html:IC.plus+' Add slide'}));
+  sb.appendChild(add);
+  return sb;
+}
+
+function slideItem(s,i){
+  const t=T[s.type];
+  const it=h('div',{class:'slide-item'+(i===sel?' sel':'')+(s.enabled?'':' off'),draggable:'true','data-i':i,
+    onclick:()=>{ sel=i; renderApp(); }});
+  it.appendChild(h('div',{class:'drag-handle',html:IC.drag,title:'Drag to reorder'}));
+  it.appendChild(h('div',{class:'si-num'}, String(i+1)));
+  it.appendChild(h('div',{class:'si-body'},[
+    h('div',{class:'si-name'}, slideLabel(s)),
+    h('div',{class:'si-type'}, t?t.name:s.type)
+  ]));
+  it.appendChild(h('div',{class:'si-toggle'+(s.enabled?' on':''),title:s.enabled?'Included — click to skip':'Skipped — click to include',
+    onclick:e=>{ e.stopPropagation(); s.enabled=!s.enabled; save(); renderApp(); }}));
+  // drag events
+  it.addEventListener('dragstart',e=>{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',i); it.classList.add('dragging'); });
+  it.addEventListener('dragend',()=>{ it.classList.remove('dragging'); document.querySelectorAll('.slide-item').forEach(x=>x.classList.remove('drop-above','drop-below')); });
+  it.addEventListener('dragover',e=>{ e.preventDefault(); const r=it.getBoundingClientRect(); const below=(e.clientY-r.top)>r.height/2;
+    it.classList.toggle('drop-below',below); it.classList.toggle('drop-above',!below); });
+  it.addEventListener('dragleave',()=>it.classList.remove('drop-above','drop-below'));
+  it.addEventListener('drop',e=>{ e.preventDefault(); const from=+e.dataTransfer.getData('text/plain');
+    const r=it.getBoundingClientRect(); const below=(e.clientY-r.top)>r.height/2; let to=i+(below?1:0);
+    moveSlide(from,to); });
+  return it;
+}
+function slideLabel(s){ const d=s.data||{};
+  return d.title || d.client || (s.type==='cover'?'Title slide':'') || T[s.type].name; }
+
+function moveSlide(from,to){
+  if(from===to||from===to-1){ renderApp(); return; }
+  const arr=state.slides; const [m]=arr.splice(from,1);
+  if(from<to) to--; arr.splice(to,0,m);
+  sel=to; save(); renderApp();
+}
+
+function toggleAddMenu(container){
+  const existing=container.querySelector('.add-menu');
+  if(existing){ existing.remove(); return; }
+  const menu=h('div',{class:'add-menu'});
+  Object.keys(T).forEach(key=>{ const t=T[key];
+    menu.appendChild(h('button',{onclick:e=>{e.stopPropagation();addSlide(key);}},[
+      h('div',{class:'am-ic',html:t.icon}),
+      h('div',{},[ h('div',{style:{fontWeight:'600'}},t.name), h('div',{class:'am-desc'},t.desc) ])
+    ]));
+  });
+  container.appendChild(menu);
+  setTimeout(()=>document.addEventListener('click',function cl(){ menu.remove(); document.removeEventListener('click',cl); }),0);
+}
+function addSlide(key){
+  const ns=slide(key); const at=sel+1;
+  state.slides.splice(at,0,ns); sel=at; save(); renderApp(); toast(T[key].name+' added','ok');
+}
+function dupSlide(){ const s=state.slides[sel]; const copy=JSON.parse(JSON.stringify(s)); copy.id=uid();
+  state.slides.splice(sel+1,0,copy); sel++; save(); renderApp(); toast('Slide duplicated','ok'); }
+function delSlide(){ if(state.slides.length<=1){ toast('A deck needs at least one slide','err'); return; }
+  if(!confirm('Delete this slide?')) return; state.slides.splice(sel,1); sel=Math.max(0,sel-1); save(); renderApp(); }
+
+function mainPane(){
+  const m=h('div',{class:'main'});
+  if(!state.slides.length){ m.appendChild(h('div',{class:'empty',html:IC.slides+'<div>No slides yet — add one from the sidebar.</div>'})); return m; }
+  const s=state.slides[sel]; const ctx=slideCtx(sel);
+  // preview
+  const pw=h('div',{class:'preview-wrap'});
+  pw.appendChild(h('div',{class:'preview-bar'},[
+    h('div',{class:'pb-title',html:'Slide <b>'+(sel+1)+'</b> of '+state.slides.length+' &nbsp;·&nbsp; '+esc(T[s.type].name)+(s.enabled?'':' <span style="color:var(--orange)">(skipped)</span>')}),
+    h('div',{class:'mini-actions'},[
+      h('button',{onclick:dupSlide,html:'Duplicate'}),
+      h('button',{class:'danger',onclick:delSlide,html:'Delete'})
+    ])
+  ]));
+  const outer=h('div',{class:'stage-outer'});
+  const scaler=h('div',{class:'stage-scaler',id:'scaler'});
+  const stage=h('div',{class:'stage',id:'stage'});
+  stage.innerHTML=T[s.type].preview(s.data,ctx);
+  scaler.appendChild(stage); outer.appendChild(scaler); pw.appendChild(outer);
+  m.appendChild(pw);
+  // editor
+  const ed=h('div',{class:'editor'}); const inner=h('div',{class:'editor-inner'});
+  inner.appendChild(h('div',{class:'ed-head'},[ h('span',{class:'ed-badge'},T[s.type].name), h('h2',{},slideLabel(s)) ]));
+  inner.appendChild(buildForm(s));
+  ed.appendChild(inner); m.appendChild(ed);
+  return m;
+}
+
+function slideCtx(idx){
+  // page number = position among enabled slides up to idx
+  let num=0; for(let i=0;i<=idx;i++) if(state.slides[i].enabled) num++;
+  if(!state.slides[idx].enabled) num='–';
+  return { num, footer:state.footer||'', deckType:state.deckType };
+}
+
+function refreshPreview(){
+  const s=state.slides[sel]; const stage=document.getElementById('stage');
+  if(stage){ stage.innerHTML=T[s.type].preview(s.data,slideCtx(sel)); }
+  const list=document.getElementById('slideList');
+  // update the current item's label live
+  if(list && list.children[sel]){ const nm=list.children[sel].querySelector('.si-name'); if(nm) nm.textContent=slideLabel(s); }
+}
+function onEdit(){ save(); refreshPreview(); }
+
+function scalePreview(){
+  const scaler=document.getElementById('scaler'); const stage=document.getElementById('stage'); if(!scaler||!stage) return;
+  const w=scaler.clientWidth; const sc=w/SW; stage.style.transform='scale('+sc+')'; scaler.style.height=(SH*sc)+'px';
+}
+window.addEventListener('resize',scalePreview);
+
+/* ============================================================
+   FORM BUILDER
+   ============================================================ */
+function buildForm(s){
+  const wrap=h('div',{}); const d=s.data; const fields=T[s.type].fields(d);
+  const card=h('div',{class:'card-block'});
+  fields.forEach(f=>card.appendChild(renderField(f,d)));
+  wrap.appendChild(card);
+  return wrap;
+}
+
+function renderField(f,d){
+  const field=h('div',{class:'field'});
+  if(f.type==='grid'){ field.appendChild(labelEl(f)); field.appendChild(gridEditor(d)); return field; }
+  if(f.type==='chart'){ field.appendChild(labelEl(f)); field.appendChild(chartEditor(d)); return field; }
+  field.appendChild(labelEl(f));
+  if(f.type==='text'){ field.appendChild(h('input',{type:'text',value:d[f.key]||'',placeholder:f.placeholder||'',oninput:e=>{d[f.key]=e.target.value;onEdit();}})); }
+  else if(f.type==='date'){ field.appendChild(h('input',{type:'text',value:d[f.key]||'',placeholder:f.placeholder||'',oninput:e=>{d[f.key]=e.target.value;onEdit();}})); }
+  else if(f.type==='area'){ field.appendChild(h('textarea',{rows:f.rows||3,placeholder:f.placeholder||'',oninput:e=>{d[f.key]=e.target.value;onEdit();}},d[f.key]||'')); }
+  else if(f.type==='select'){ const sel=h('select',{onchange:e=>{d[f.key]=e.target.value;onEdit();}}); (f.opts||[]).forEach(o=>sel.appendChild(h('option',{value:o.v,selected:d[f.key]===o.v?'selected':false},o.n))); field.appendChild(sel); }
+  else if(f.type==='strlist'){ field.appendChild(strListEditor(f,d)); }
+  else if(f.type==='objlist'){ field.appendChild(objListEditor(f,d)); }
+  return field;
+}
+function labelEl(f){ const l=h('label',{},f.label); if(f.hint) l.appendChild(h('span',{class:'hint'},f.hint)); return l; }
+
+function strListEditor(f,d){
+  const wrap=h('div',{}); if(!Array.isArray(d[f.key])) d[f.key]=[];
+  d[f.key].forEach((v,i)=>{
+    const row=h('div',{class:'list-row'});
+    row.appendChild(h('div',{class:'idx'},String(i+1)));
+    const inp = f.area? h('textarea',{rows:2,placeholder:f.placeholder||'',oninput:e=>{d[f.key][i]=e.target.value;onEdit();}},v||'')
+      : h('input',{type:'text',value:v||'',placeholder:f.placeholder||'',oninput:e=>{d[f.key][i]=e.target.value;onEdit();}});
+    row.appendChild(inp);
+    row.appendChild(h('button',{class:'mini-del',title:'Remove',html:IC.trash,onclick:()=>{d[f.key].splice(i,1);rerenderForm();}}));
+    wrap.appendChild(row);
+  });
+  wrap.appendChild(h('button',{class:'add-row',html:IC.plus+' '+(f.addLabel||'Add'),onclick:()=>{d[f.key].push('');rerenderForm();}}));
+  return wrap;
+}
+
+function objListEditor(f,d){
+  const wrap=h('div',{}); if(!Array.isArray(d[f.key])) d[f.key]=[];
+  d[f.key].forEach((obj,i)=>{
+    const card=h('div',{class:'obj-card'});
+    card.appendChild(h('div',{class:'oc-head'},[
+      h('div',{class:'oc-title'}, (f.itemName||'Item')+' '+(i+1)),
+      h('button',{class:'mini-del',title:'Remove',html:IC.trash,onclick:()=>{d[f.key].splice(i,1);rerenderForm();}})
+    ]));
+    const g=h('div',{class:f.sub.length>1?'grid2':''});
+    f.sub.forEach(sf=>{
+      const fld=h('div',{class:'field',style:{margin:'0 0 8px'}});
+      fld.appendChild(h('label',{style:{fontSize:'11px'}},sf.label));
+      if(sf.type==='area') fld.appendChild(h('textarea',{rows:2,placeholder:sf.placeholder||'',oninput:e=>{obj[sf.key]=e.target.value;onEdit();}},obj[sf.key]||''));
+      else fld.appendChild(h('input',{type:'text',value:obj[sf.key]||'',placeholder:sf.placeholder||'',oninput:e=>{obj[sf.key]=e.target.value;onEdit();}}));
+      g.appendChild(fld);
+    });
+    card.appendChild(g); wrap.appendChild(card);
+  });
+  wrap.appendChild(h('button',{class:'add-row',html:IC.plus+' '+(f.addLabel||'Add'),onclick:()=>{ const o={}; f.sub.forEach(sf=>o[sf.key]=''); d[f.key].push(o); rerenderForm(); }}));
+  return wrap;
+}
+
+/* ---- table grid editor ---- */
+function gridEditor(d){
+  if(!Array.isArray(d.header)) d.header=['Column 1','Column 2'];
+  if(!Array.isArray(d.rows)) d.rows=[['','']];
+  const cols=d.header.length;
+  const wrap=h('div',{});
+  const scroll=h('div',{class:'tbl-scroll'});
+  const table=h('table',{class:'grid'});
+  // header row
+  const thead=h('tr',{});
+  thead.appendChild(h('th',{class:'gcorner'}));
+  d.header.forEach((hh,c)=>{
+    const th=h('th',{});
+    th.appendChild(h('input',{type:'text',value:hh||'',placeholder:'Header',oninput:e=>{d.header[c]=e.target.value;onEdit();}}));
+    th.appendChild(h('button',{class:'coldel',title:'Delete column',html:IC.trash,style:{position:'absolute',top:'2px',right:'2px'},
+      onclick:()=>{ if(cols<=1){toast('Keep at least one column','err');return;} d.header.splice(c,1); d.rows.forEach(r=>r.splice(c,1)); rerenderForm(); }}));
+    thead.appendChild(th);
+  });
+  table.appendChild(thead);
+  // body
+  d.rows.forEach((r,ri)=>{
+    while(r.length<cols) r.push('');
+    const tr=h('tr',{});
+    tr.appendChild(h('td',{class:'gcorner'},h('button',{class:'rowdel',title:'Delete row',html:IC.trash,onclick:()=>{d.rows.splice(ri,1);rerenderForm();}})));
+    for(let c=0;c<cols;c++){ const td=h('td',{}); td.appendChild(h('input',{type:'text',value:r[c]||'',oninput:e=>{d.rows[ri][c]=e.target.value;onEdit();}})); tr.appendChild(td); }
+    table.appendChild(tr);
+  });
+  scroll.appendChild(table); wrap.appendChild(scroll);
+  const tools=h('div',{class:'tbl-tools'});
+  tools.appendChild(h('button',{class:'add-row',html:IC.plus+' Add row',onclick:()=>{d.rows.push(new Array(cols).fill(''));rerenderForm();}}));
+  tools.appendChild(h('button',{class:'add-row',html:IC.plus+' Add column',onclick:()=>{d.header.push('Column '+(cols+1));d.rows.forEach(r=>r.push(''));rerenderForm();}}));
+  wrap.appendChild(tools);
+  return wrap;
+}
+
+/* ---- chart editor ---- */
+function chartEditor(d){
+  if(!Array.isArray(d.categories)) d.categories=[];
+  if(!Array.isArray(d.series)) d.series=[];
+  const wrap=h('div',{});
+  // type selector
+  const types=h('div',{class:'chart-types'});
+  CHART_TYPES.forEach(ct=>{
+    types.appendChild(h('button',{class:'ct-opt'+(d.chartType===ct.v?' on':''),onclick:()=>{d.chartType=ct.v;rerenderForm();}},ct.n));
+  });
+  wrap.appendChild(types);
+  const single = d.chartType==='pie'||d.chartType==='doughnut';
+  // categories
+  const catField=h('div',{class:'field',style:{marginTop:'12px'}});
+  catField.appendChild(h('label',{},single?'Segments':'Categories (X axis)'));
+  const catWrap=h('div',{});
+  d.categories.forEach((c,i)=>{
+    const row=h('div',{class:'list-row'});
+    row.appendChild(h('div',{class:'idx'},String(i+1)));
+    row.appendChild(h('input',{type:'text',value:c||'',placeholder:'Label',oninput:e=>{d.categories[i]=e.target.value;onEdit();}}));
+    row.appendChild(h('button',{class:'mini-del',html:IC.trash,onclick:()=>{ d.categories.splice(i,1); d.series.forEach(s=>s.values.splice(i,1)); rerenderForm(); }}));
+    catWrap.appendChild(row);
+  });
+  catWrap.appendChild(h('button',{class:'add-row',html:IC.plus+' Add '+(single?'segment':'category'),onclick:()=>{ d.categories.push(''); d.series.forEach(s=>s.values.push(0)); rerenderForm(); }}));
+  catField.appendChild(catWrap); wrap.appendChild(catField);
+  // series
+  const serField=h('div',{class:'field'});
+  serField.appendChild(h('label',{},single?'Values':'Data series'));
+  d.series.forEach((se,si)=>{
+    if(single && si>0) return;
+    if(!Array.isArray(se.values)) se.values=[];
+    while(se.values.length<d.categories.length) se.values.push(0);
+    const card=h('div',{class:'obj-card'});
+    const head=h('div',{class:'oc-head'});
+    const left=h('div',{style:{display:'flex',alignItems:'center',gap:'8px',flex:'1'}});
+    left.appendChild(h('div',{class:'color-dot',style:{background:hx(PALETTE[si%PALETTE.length])}}));
+    left.appendChild(h('input',{type:'text',value:se.name||'',placeholder:'Series name',style:{maxWidth:'220px'},oninput:e=>{se.name=e.target.value;onEdit();}}));
+    head.appendChild(left);
+    if(!single) head.appendChild(h('button',{class:'mini-del',html:IC.trash,onclick:()=>{d.series.splice(si,1);rerenderForm();}}));
+    card.appendChild(head);
+    const vg=h('div',{class:'series-val-grid'});
+    d.categories.forEach((cat,ci)=>{
+      const cell=h('div',{class:'svg-cell'});
+      cell.appendChild(h('span',{title:cat},cat||('#'+(ci+1))));
+      cell.appendChild(h('input',{type:'number',step:'any',value:se.values[ci]!=null?se.values[ci]:'',oninput:e=>{se.values[ci]=e.target.value===''?0:parseFloat(e.target.value);onEdit();}}));
+      vg.appendChild(cell);
+    });
+    card.appendChild(vg); serField.appendChild(card);
+  });
+  if(!single) serField.appendChild(h('button',{class:'add-row',html:IC.plus+' Add series',onclick:()=>{ d.series.push({name:'Series '+(d.series.length+1),values:new Array(d.categories.length).fill(0)}); rerenderForm(); }}));
+  wrap.appendChild(serField);
+  return wrap;
+}
+
+function rerenderForm(){ save(); renderApp(); }
+
+/* ============================================================
+   THEME
+   ============================================================ */
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  const dark=cur? cur==='dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark?'light':'dark');
+  try{ localStorage.setItem(LS_KEY+'.theme', dark?'light':'dark'); }catch(e){}
+  scalePreview();
+}
+(function initTheme(){ try{ const t=localStorage.getItem(LS_KEY+'.theme'); if(t) document.documentElement.setAttribute('data-theme',t); }catch(e){} })();
+
+/* ============================================================
+   IMPORT / EXPORT JSON
+   ============================================================ */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=(state.fileName||'deck')+'.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000); toast('Saved '+a.download,'ok');
+}
+function importJSON(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; const r=new FileReader();
+    r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o.slides) throw 0; state=o; sel=0; save(); renderApp(); toast('Loaded '+f.name,'ok'); }
+      catch(e){ toast('That file is not a valid deck','err'); } };
+    r.readAsText(f); };
+  inp.click();
+}
+
+/* ============================================================
+   EXPORT PPTX
+   ============================================================ */
+function exportPPTX(){
+  if(typeof PptxGenJS==='undefined'){ toast('PowerPoint library not loaded — check your connection and reload','err'); return; }
+  const enabled=state.slides.filter(s=>s.enabled);
+  if(!enabled.length){ toast('No slides are included','err'); return; }
+  toast('Building PowerPoint…');
+  try{
+    const pptx=new PptxGenJS();
+    pptx.defineLayout({name:'W169',width:13.333,height:7.5});
+    pptx.layout='W169';
+    pptx.author='Review Deck Builder'; pptx.company='Outseer';
+    let num=0;
+    enabled.forEach(sl=>{ num++; const s=pptx.addSlide(); const ctx={num,footer:state.footer||'',deckType:state.deckType};
+      try{ T[sl.type].pptx(pptx,s,sl.data,ctx); }
+      catch(e){ console.error('slide error',sl.type,e); s.addText('Error rendering slide: '+sl.type,{x:1,y:1,w:10,h:1,color:'EA602A'}); }
+    });
+    const fname=(state.fileName||'Review_Deck')+'.pptx';
+    pptx.writeFile({fileName:fname}).then(()=>toast('Downloaded '+fname,'ok'))
+      .catch(e=>{ console.error(e); toast('Export failed: '+e.message,'err'); });
+  }catch(e){ console.error(e); toast('Export failed: '+e.message,'err'); }
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+renderApp();
+</script>
+</body>
+</html>
