@@ -786,7 +786,7 @@ function chartSVG(d, W, H){
   const iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
   const col=i=>hx(PALETTE[i%PALETTE.length]);
   const axisc=hx(C.ink3), gridc=hx(C.line), txtc=hx(C.ink2);
-  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block" font-family="IBM Plex Sans,sans-serif">`;
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block" font-family="IBM Plex Sans,sans-serif">`;
 
   if(type==='pie'||type==='doughnut'){
     const vals=(series[0]?series[0].values:[]).map(Number);
@@ -807,14 +807,15 @@ function chartSVG(d, W, H){
     return s+'</svg>';
   }
 
-  // numeric range
-  let maxV=0,minV=0;
-  if(type==='stacked'){ cats.forEach((_,ci)=>{ let sum=0; series.forEach(se=>sum+=Number(se.values[ci]||0)); if(sum>maxV)maxV=sum; }); }
-  else { series.forEach(se=>(se.values||[]).forEach(v=>{ v=Number(v); if(v>maxV)maxV=v; if(v<minV)minV=v; })); }
-  maxV=maxV||1;
-  // bars must start at 0; a line trend zooms to its own range so small movements read
-  let base = Math.min(0,minV);
-  if(type==='line' && minV>0){ base = Math.max(0, minV - (maxV-minV||maxV*0.05)*0.4); }
+  // numeric range — track the true data min (start at +Inf, not 0)
+  let maxV=-Infinity, dataMin=Infinity;
+  if(type==='stacked'){ cats.forEach((_,ci)=>{ let sum=0; series.forEach(se=>sum+=Number(se.values[ci]||0)); if(sum>maxV)maxV=sum; }); dataMin=0; }
+  else { series.forEach(se=>(se.values||[]).forEach(v=>{ v=Number(v)||0; if(v>maxV)maxV=v; if(v<dataMin)dataMin=v; })); }
+  if(!isFinite(maxV)) maxV=1; if(!isFinite(dataMin)) dataMin=0;
+  if(maxV===dataMin){ maxV=dataMin+1; }
+  // bars start at 0; a line trend zooms to its own range so small movements read
+  let base = Math.min(0,dataMin);
+  if(type==='line' && dataMin>0){ base = Math.max(0, dataMin - (maxV-dataMin||maxV*0.05)*0.45); }
   const rng=(maxV-base)||1;
   const yTo=v=> pad.t+ih-((v-base)/rng)*ih;
   // gridlines + y labels
@@ -1846,7 +1847,7 @@ async function buildTemplateSlide(sl, layout, n){
     +'<p:sld '+A_NS+' '+R_NS+' '+P_NS+'><p:cSld><p:spTree>'
     +'<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
     +'<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
-    +shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:overrideClrMapping bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/></p:clrMapOvr></p:sld>';
+    +shapes+'</p:spTree></p:cSld></p:sld>';
   const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
     +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+relPaths.join('')+'</Relationships>';
   return { xml, rels, media };
