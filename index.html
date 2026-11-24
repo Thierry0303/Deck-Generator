@@ -144,6 +144,46 @@ textarea.src:focus{border-color:var(--accent)}
   .printslide{page-break-after:always;width:1280px;height:720px;position:relative;overflow:hidden}
 }
 .printonly{display:none}
+
+/* ---------------------------------------------------------------- responsive
+   The editor is three fixed columns on a desktop. Below ~1100px they are
+   squeezed, and below ~860px there is no room for columns at all: the rail
+   becomes a horizontal filmstrip and the inspector drops under the stage. */
+@media (max-width:1100px){
+  .insp{width:272px;flex:0 0 272px}
+  .rail{width:152px;flex:0 0 152px}
+  .compose .side{width:264px;flex:0 0 264px}
+}
+@media (max-width:860px){
+  .top{padding:8px 10px;gap:7px}
+  .btn{padding:7px 10px;font-size:12px}
+  .seg button{padding:6px 11px;font-size:12px}
+  .brand{font-size:14px}
+
+  .compose{flex-direction:column;padding:12px;gap:12px;overflow:auto}
+  .compose .main,.compose .side{width:100%;flex:0 0 auto}
+  textarea.src{min-height:230px}
+  .themes{grid-template-columns:repeat(3,1fr)}
+
+  .deck{flex-direction:column;overflow:auto}
+  .rail{width:100%;flex:0 0 auto;display:flex;gap:8px;padding:8px;
+    overflow-x:auto;overflow-y:hidden;border-right:none;border-bottom:1px solid var(--edge)}
+  .rail .thumb{flex:0 0 136px;margin-bottom:0}
+  .stagewrap{flex:0 0 auto}
+  /* transform:scale() does not shrink the layout box, so a 720px-tall stage
+     would reserve 720px of dead column and push the editor off screen.
+     Pin the area to the height a full-width 16:9 slide actually needs. */
+  .stagepad{flex:0 0 auto;padding:10px;overflow:hidden;
+    height:calc((100vw - 20px) * 0.5625 + 20px)}
+  .stagebar{padding:8px 10px;gap:6px}
+  .insp{width:100%;flex:0 0 auto;border-left:none;border-top:1px solid var(--edge);
+    max-height:none;padding:12px}
+}
+@media (max-width:560px){
+  .themes{grid-template-columns:repeat(2,1fr)}
+  .stagebar .hint{order:-1;width:100%}
+  .grid2{grid-template-columns:1fr}
+}
 </style>
 <script>/* PptxGenJS 4.0.1 (MIT) */
 /* PptxGenJS 4.0.1 @ 2025-06-25T23:35:35.101Z */
@@ -1455,7 +1495,7 @@ function renderPPTX(prims, slide, pptx) {
 const BRAND = {
   name: 'Deckhand',
   tagline: 'Decks from your notes, without uploading a thing',
-  url: '',                 // set this once it has a home, e.g. 'https://deckhand.app'
+  url: 'https://thierry0303.github.io/Deck-Generator/',
 };
 const LS_KEY = 'deckgen.v1';
 const FILE_VERSION = 1;
@@ -1988,8 +2028,12 @@ function paintThumbs() {
 function fitStage() {
   const pad = document.getElementById('stagepad'), st = document.getElementById('stage');
   if (!pad || !st) return;
-  const s = Math.min((pad.clientWidth - 40) / 1280, (pad.clientHeight - 40) / 720);
-  st.style.transform = 'scale(' + Math.max(0.1, s) + ')';
+  // read the real padding: it differs between the desktop and mobile layouts
+  const cs = getComputedStyle(pad);
+  const availW = pad.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+  const availH = pad.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
+  const s = Math.min(availW / 1280, availH / 720);
+  st.style.transform = 'scale(' + Math.max(0.05, s) + ')';
 }
 window.addEventListener('resize', () => { if (state.screen === 'deck') { fitStage(); } });
 
